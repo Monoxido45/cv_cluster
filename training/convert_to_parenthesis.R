@@ -9,6 +9,7 @@ library(dplyr)
 
 # function converting generical clustering object into dendrogram object
 to.dend = function(cl.obj){
+  # converting generical clustering object into hclust object first
   cluster.obj = cl.obj %>% as.hclust()
   dend = cluster.obj %>% as.dendrogram(hang = -1, check = TRUE)
   return(dend)
