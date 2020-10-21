@@ -1,0 +1,224 @@
+---
+title: "Testing  continuous score in some data"
+author: "Luben"
+date: "20/10/2020"
+output: html_document
+---
+```{r global_options, message=FALSE, include=FALSE}
+```
+```{r message = FALSE, include = FALSE}
+library(ape)
+library(dendextend)
+library(cluster)
+library(tibble)
+library(magrittr)
+library(dplyr)
+library(phytools)
+library(limSolve)
+library(mltools)
+library(data.table)
+library(factoextra)
+source("convert_to_parenthesis.R")
+source("cv_score.R")
+library(tictoc)
+```
+Generating some data and testing the continuous score:
+```{r}
+set.seed(99)
+data.sim =  data.frame("x1" = rnorm(20, 2, 1),
+                       "x2" = runif(20, 3, 6),
+                       "x3" = rexp(20))
+# using hierarchical clustering
+sim.agnes = agnes(scale(data.sim))
+dend.agnes = to.dend(sim.agnes)
+test = convert_to_par(dend.agnes)
+sim.test= read.tree(text = test)
+
+# comparing fviz_dend
+fviz_dend(dend.agnes)
+```
+\
+With normal plot:
+```{r}
+plot(sim.test)
+```
+\
+No difference. So, we use the above dendrogram and each $X_i$ to make the predictions.Initially we have for $X_1$
+```{r}
+var_1 = data.sim$x1
+var_1[3] = NA
+names(var_1) = row.names(data.sim)
+var_1
+```
+Removing NA index
+```{r}
+del.ind = match(NA, var_1)
+new.var_1 = var_1[-del.ind]
+new.var_1
+```
+And now, testing in anc.ML:
+```{r}
+fit = anc.ML(sim.test, new.var_1, model = "BM")
+fit$missing.x
+```
+Designing test function:
+```{r}
+test_cont = function(data, column, pos, dend){
+  if(is.factor(data[, column]) == FALSE){
+    var = scale(data[, column])
+    var[pos] = NA
+    names(var) = row.names(data)
+    del.ind = match(NA, var)
+    new.var = var[-del.ind]
+    fit = anc.ML(dend, new.var, model = "BM")
+    return(fit$missing.x)
+  }else{
+    return(NULL)
+  }
+}
+```
+Testing for $X_2$:
+```{r}
+test_cont(data.sim, 2, 3, sim.test)
+```
+and for $X_3$:
+```{r}
+test_cont(data.sim, 3, 3, sim.test)
+```
+Now simulating with a bigger $n$:
+```{r}
+set.seed(99)
+n = 60
+new_data.sim =  data.frame("x1" = rnorm(n, 2, 1),
+                       "x2" = runif(n, 3, 6),
+                       "x3" = rexp(n))
+
+sim.agnes = agnes(scale(new_data.sim))
+dend.agnes = to.dend(sim.agnes)
+test = convert_to_par(dend.agnes)
+sim.test= read.tree(text = test)
+
+# comparing fviz_dend
+fviz_dend(sim.agnes)
+```
+\
+With normal plot:
+```{r}
+plot(sim.test)
+```
+For $X_1$:
+```{r}
+test_cont(new_data.sim, 1, 3, sim.test)
+```
+For $X_2$:
+```{r}
+test_cont(new_data.sim, 2, 3, sim.test)
+```
+For $X_3$:
+```{r}
+test_cont(new_data.sim, 3, 3, sim.test)
+```
+It seems to work, lets test our scoring function:
+```{r}
+tic("Scoring time for simulated data")
+final_score = L_score(sim.test, new_data.sim)
+final_score
+toc()
+```
+So, for agnes dendrogram we have a score of $0.005$. Trying other hierarchical methods gives:
+```{r}
+sim.diana = diana(scale(new_data.sim))
+sim.hc = hclust(dist(scale(new_data.sim)), method = "ward.D2")
+
+dend.diana = to.dend(sim.diana)
+test.diana = convert_to_par(dend.diana)
+tree.diana = read.tree(text = test.diana)
+
+dend.hc = to.dend(sim.hc)
+test.hc = convert_to_par(dend.hc)
+tree.hc = read.tree(text = test.hc)
+
+# testing both
+tic("Scoring time for diana clustering in simulated data")
+final_score.diana = L_score(tree.diana, new_data.sim)
+toc()
+tic(C")
+final_score.hc = L_score(tree.hc, new_data.sim)
+toc()
+final_score
+final_score.hc
+final_score.diana
+```
+Now, returning to our original data, lets explore more of USArrests:
+```{r}
+arr = USArrests
+head(arr)
+```
+Testing hierarchical clustering with ward distance
+```{r}
+row.names(arr) = c(1:nrow(arr))
+arr.hc = hclust(dist(scale(arr)))
+dend.hc = to.dend(arr.hc)
+test = convert_to_par(dend.hc)
+arr.tree.hc = read.tree(text = test)
+
+# comparing fviz_dend
+fviz_dend(arr.hc)
+```
+\ Ploting the tree by default function to check the transformation:
+```{r}
+plot(arr.tree.hc)
+```
+\
+It seems to be right, lets give the anc.ML a try:
+```{r}
+test_cont(arr, 1, 3, arr.tree.hc)
+```
+Testing the score function now:
+```{r}
+tic("Scoring time for diana clustering in USArrests")
+L_score(arr.tree.hc, arr)
+toc()
+```
+Testing Iris dataset:
+```{r}
+flowers = iris
+head(flowers)
+```
+```{r}
+row.names(flowers) = c(1:nrow(flowers))
+
+flowers.onehot = one_hot(as.data.table(flowers))
+flowers.onehot = flowers.onehot %>%
+  dplyr::select(-c("Species_virginica")) %>%
+  scale()
+flowers.hc= dist(flowers.onehot) %>%
+  hclust()
+dend.hc = to.dend(flowers.hc)
+test = convert_to_par(dend.hc)
+flowers.tree.hc = read.tree(text = test)
+flowers.tree.hc$edge.length[which(flowers.tree.hc$edge.length %in% c(0))] = 10^(-8)
+
+# comparing fviz_dend
+fviz_dend(flowers.hc)
+```
+\
+Ploting the tree by default function to check the transformation:
+```{r}
+plot(flowers.tree.hc)
+```
+\
+Testing continuous function:
+```{r}
+test_cont(flowers, 1, 3, flowers.tree.hc)
+```
+Testing the score function now:
+```{r message = FALSE}
+tic("Scoring time for hiearchical clustering in iris dataset")
+score = L_score(flowers.tree.hc, flowers)
+toc()
+```
+
+
+
+

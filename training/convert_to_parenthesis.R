@@ -6,6 +6,8 @@ library(cluster)
 library(tibble)
 library(magrittr)
 library(dplyr)
+library(phytools)
+library(stats)
 
 # function converting generical clustering object into dendrogram object
 to.dend = function(cl.obj){
@@ -25,6 +27,7 @@ convert_to_par <- function(dend, first_it =  TRUE)
     dend.object2 = dend[[2]]
     dist2 = as.double(attr(dend.object2, "height"))
     first_it = FALSE
+    if (is.list(dend.object1) == TRUE & is.list(dend.object2) == TRUE){
     return(paste0("((",
                   convert_to_par(dend.object1, first_it),
                   "):",
@@ -34,7 +37,32 @@ convert_to_par <- function(dend, first_it =  TRUE)
                   convert_to_par(dend.object2, first_it),
                   "):",
                   dist - dist2,
-                  ");"))
+                  ");"))}else{
+                    if(is.list(dend.object1) == TRUE & is.list(dend.object2) == FALSE){
+                      label = attr(dend.object2, "label")
+                      return(paste0("((",
+                                    convert_to_par(dend.object1, first_it),
+                                    "):",
+                                    dist - dist1,
+                                    ",",
+                                    label,
+                                    ":",
+                                    dist - dist2,
+                                    ");"))
+                    }else{
+                      label = attr(dend.object1, "label")
+                      return(paste0("(",
+                                    label,
+                                    ":",
+                                    dist - dist1,
+                                    ",",
+                                    "(",
+                                    convert_to_par(dend.object2, first_it),
+                                    "):",
+                                    dist - dist2,
+                                    ");"))
+                    }
+                  }
   }else{
       dist = as.double(attr(dend, "height"))
       dend.object1 =  dend[[1]]
@@ -78,20 +106,8 @@ convert_to_par <- function(dend, first_it =  TRUE)
     }
 }
 
-# test using DIANA clustering method on USAarrests data
 
-data("USArrests")
-arrests_df = USArrests %>%
-  as_tibble()
-arrests_df
-arr.diana = arrests_df %>%
-  diana()
-dend.diana = to.dend(arr.diana)
-parenthetic_test = convert_to_par(dend.diana, first_it = TRUE)
-parenthetic_test
 
-# comparing the parenthetic and dendrogram format by plotting
-tree.obj = read.tree(text = parenthetic_test)
-plot(tree.obj, no.margin = TRUE, edge.width = 2)
-plot(dend.diana)
+
+
 

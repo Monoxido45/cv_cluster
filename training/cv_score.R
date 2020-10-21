@@ -12,8 +12,6 @@ library(data.table)
 library(factoextra)
 source("convert_to_parenthesis.R")
 
-x1 = c(0, 1, 0 ,1, 1, 1, 0)
-x2 = c(12, 31, 22.5, 5.4, 8, 9.2, 1.6)
 
 # defining one hot encoder for simap
 onehotencoder = function(miss_data){
@@ -32,101 +30,12 @@ onehotencoder = function(miss_data){
   return(onehot)
 }
 
-continuous.missing = function(dend, miss_data){
+
+continuous.missing = function(dend, miss_data, tol){
   max.tl = miss_data
   del.ind = match(NA, max.tl)
   new_max.tl = max.tl[-del.ind]
-  print(new_max.tl)
-  fit = anc.ML(dend, new_max.tl, model = "BM", tol = 1e-50)
-  y.hat = fit$missing.x
-  y.hat.var = fit$sig2
-  return(list(y.hat, y.hat.var))
-}
-
-
-# using iris
-data("iris")
-head(iris)
-iris.onehot = one_hot(as.data.table(iris))
-iris.onehot = iris.onehot %>%
-  dplyr::select(-c("Species_virginica")) %>%
-  scale()
-iris.agnes= iris.onehot %>%
-  agnes()
-
-data("USArrests")
-names = row.names(USArrests)
-arrests_df = USArrests %>%
-  scale %>%
-  as_tibble()
-row.names(arrests_df) = names
-arr.agnes = arrests_df %>%
-  agnes()
-
-# testing discrete prior probability estimation for iris dataset
-
-fviz_dend(iris.agnes)
-dend.agnes= to.dend(iris.agnes)
-parenthetic_test = convert_to_par(dend.agnes, first_it = TRUE)
-dend.used = read.tree(text = parenthetic_test)
-plot(dend.used)
-
-species = iris$Species
-species[1] = NA
-names(species) = row.names(iris)
-fact.mat = onehotencoder(species)
-fact.mat
-
-
-fviz_dend(iris.agnes)
-dend.agnes= to.dend(iris.agnes)
-parenthetic_test = convert_to_par(dend.agnes, first_it = TRUE)
-dend.used = read.tree(text = parenthetic_test)
-plot(dend.used)
-
-# applying simap
-fit_discrete = make.simmap(dend.used, fact.mat, model = "SYM", pi = "estimated")
-
-# obtaining pi
-pi = xranges(G = t(as.matrix(fit_discrete$Q)), F = rep(1, 3),
-        E = matrix(1, ncol = nrow(fit_discrete$Q), 
-                   nrow = nrow(fit_discrete$Q)),
-        H = c(0, 0, 0))[, 1]
-
-# trying continuous estimation
-max.tl = iris[, 3]
-max.tl[3] = NA
-del.ind = match(NA, max.tl)
-new_max.tl = max.tl[-del.ind]
-print(new_max.tl)
-names(new_max.tl) = row.names(iris[-del.ind, ])
-fit = anc.ML(dend.used, new_max.tl, model = "BM")
-
-
-# now testing continuous estimation in USAarrests using agnes dendrogram
-dend.agnes = to.dend(arr.agnes)
-parenthetic_test = convert_to_par(dend.agnes, first_it = TRUE)
-dend.used= read.tree(text = parenthetic_test)
-fviz_dend(arr.agnes)
-plot(dend.used)
-max.tl = USArrests[, 3]
-max.tl[3] = NA
-del.ind = match(NA, max.tl)
-new_max.tl = max.tl[-del.ind]
-print(new_max.tl)
-names(new_max.tl) = row.names(USArrests[-del.ind, ])
-fit = anc.ML(dend.used, new_max.tl, model = "BM")
-
-
-
-
-
-continuous.missing = function(dend, miss_data){
-  max.tl = miss_data
-  del.ind = match(NA, max.tl)
-  new_max.tl = max.tl[-del.ind]
-  print(new_max.tl)
-  fit = anc.ML(dend, new_max.tl, model = "BM", tol = 1e-50)
+  fit = anc.ML(dend, new_max.tl, model = "BM", tol = tol)
   y.hat = fit$missing.x
   y.hat.var = fit$sig2
   return(list(y.hat, y.hat.var))
@@ -134,7 +43,8 @@ continuous.missing = function(dend, miss_data){
 
 factorial.missing = function(dend, miss_data){
   onehot = onehotencoder(miss_data)
-  fit_discrete = make.simmap(dend, onehot, model = "ARD", pi = "estimated")
+  fit_discrete = make.simmap(dend, onehot, model = "SYM", pi = "estimated",
+                             message = FALSE)
   Q = as.matrix(fit_discrete$Q)
   dim = nrow(Q)
   pi = xranges(E = matrix(1, nrow = dim, ncol = dim), F = rep(1, dim),
@@ -143,24 +53,25 @@ factorial.missing = function(dend, miss_data){
   return(list(pi, A.norm))
 }
 
-L_score = function(dend, original_data){
+L_score = function(dend, original_data, tol = 1e-18){
   types = sapply(original_data, class)
   p = length(original_data[1, ])
   n = length(original_data[, 1])
   total = p*n
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
+  row.names(original_data) = c(1:nrow(original_data))
   for (j in range (1:p)){
     lines = numeric(n)
     if (types[j] == "integer" | types[j] == "numeric"){
       current_data = original_data[, j]
-      scaled = scale(current_data) 
-        for (i in range(1:n)){
+      scaled = scale(current_data)
+        for (i in (1:n)){
           saved_value = scaled[i]
           miss_data = scaled
           names(miss_data) = names
           miss_data[i] = NA
-          results = continuous.missing(dend, miss_data)
+          results = continuous.missing(dend, miss_data, tol)
           y.pred = results[[1]]
           y.pred_var = results[[2]]
           mse = ((y.pred - saved_value)^2)/y.pred_var
@@ -169,13 +80,13 @@ L_score = function(dend, original_data){
     }else{
       current_data = original_data[, j]
       if (types[j] == "logical") current_data = as.factor(current_data)
-      for (i in range(1:n)){
+      for (i in (1:n)){
         saved_value = numeric(nlevels(current_data))
         saved_value[as.numeric(current_data)[i]] = 1
         miss_data = current_data
         names(miss_data) = names
         miss_data[i] = NA
-        results = fatorial.missing(dend, miss_data)
+        results = factorial.missing(dend, miss_data)
         pi = results[[1]]
         A.norm = results[[2]]
         mse = (sum((saved_value - pi)^2))/A.norm
@@ -185,11 +96,9 @@ L_score = function(dend, original_data){
   score.matrix[, j] = lines  
   }
   partial_score = colSums(score.matrix)
-  score = partial_score/total
+  score = sum(partial_score)/total
   return(score)
 }
-
-test.score = L_score(dend.used, USArrests)
 
 
   
