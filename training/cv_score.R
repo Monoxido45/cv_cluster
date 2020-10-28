@@ -45,8 +45,8 @@ continuous.missing = function(dend, miss_data, tol){
 
 factorial.missing = function(dend, miss_data){
   onehot = onehotencoder(miss_data)
-  fit_discrete = make.simmap(dend, onehot, model = "SYM", pi = "estimated",
-                             message = FALSE)
+  fit_discrete = make.simmap(dend, onehot, model = "ER", pi = "estimated",
+                             message = FALSE, nsim = 10)
   Q = as.matrix(fit_discrete$Q)
   dim = nrow(Q)
   pi = xranges(E = matrix(1, nrow = dim, ncol = dim), F = rep(1, dim),
@@ -111,12 +111,11 @@ L_score = function(dend, original_data, tol = 1e-18){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing", "factorial.missing", 
                           "continuous.missing","onehotencoder"),
-                         .packages = c("ape", "phytools")) %do% {
+                         .packages = c("ape", "phytools")) %dopar% {
     lines = row_computing(types, dend, original_data, tol, j)
     lines
 }
   stopCluster(cl)
-  print(score.matrix)
   partial_score = colSums(score.matrix)
   score = sum(partial_score)/total
   return(score)
@@ -169,26 +168,4 @@ L_score_2 = function(dend, original_data, tol = 1e-18){
   score = sum(partial_score)/total
   return(score)
 }
-
-set.seed(99)
-n = 60
-data.sim =  data.frame("x1" = rnorm(n, 2, 1),
-                       "x2" = runif(n, 3, 6),
-                       "x3" = rexp(n))
-
-# using hierarchical clustering
-sim.agnes = agnes(scale(data.sim))
-dend.agnes = to.dend(sim.agnes)
-test = convert_to_par(dend.agnes)
-sim.test= read.tree(text = test)
-
-tic("Scoring time for simulated data")
-final_score = L_score(sim.test, data.sim)
-final_score
-toc()
-
-tic("Scoring time for simulated data 2")
-final_score2 = L_score(sim.test, data.sim)
-final_score2
-toc()
 

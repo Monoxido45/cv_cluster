@@ -106,6 +106,12 @@ With normal plot:
 ```{r}
 plot(sim.test)
 ```
+Assessing number of cores:
+```{r}
+cores = detectCores()
+cores
+```
+
 For $X_1$:
 ```{r}
 test_cont(new_data.sim, 1, 3, sim.test)
@@ -118,14 +124,29 @@ For $X_3$:
 ```{r}
 test_cont(new_data.sim, 3, 3, sim.test)
 ```
-It seems to work, lets test our scoring function:
+It seems to work, lets test our scoring function parallelized and serialized:
 ```{r}
+
+set.seed(99)
+n = 60
+data.sim =  data.frame("x1" = rnorm(n, 2, 1),
+                       "x2" = runif(n, 3, 6),
+                       "x3" = rexp(n))
+
+# using hierarchical clustering
+
 tic("Scoring time for simulated data")
 final_score = L_score(sim.test, new_data.sim)
 final_score
 toc()
+
+tic("Scoring time for simulated data 2")
+final_score2 = L_score(sim.test,new_data.sim)
+final_score2
+toc()
+
 ```
-So, for agnes dendrogram we have a score of $0.005$. Trying other hierarchical methods gives:
+So, for agnes dendrogram we have a score of $3.33658$. Trying other hierarchical methods gives:
 ```{r}
 sim.diana = diana(scale(new_data.sim))
 sim.hc = hclust(dist(scale(new_data.sim)), method = "ward.D2")
@@ -142,7 +163,7 @@ tree.hc = read.tree(text = test.hc)
 tic("Scoring time for diana clustering in simulated data")
 final_score.diana = L_score(tree.diana, new_data.sim)
 toc()
-tic(C")
+tic("Scoring time for hierarchical clustering in simulated data")
 final_score.hc = L_score(tree.hc, new_data.sim)
 toc()
 final_score
@@ -180,6 +201,37 @@ tic("Scoring time for diana clustering in USArrests")
 L_score(arr.tree.hc, arr)
 toc()
 ```
+Simulating large categorical dataset and then making a distance matrix with gower distance
+```{r}
+set.seed(7*14)
+n = 85
+sim.data = data.frame("X1" = factor(sample(c(1,2,3), n, replace = TRUE)),
+                      "X2" = factor(sample(c(1,2,3,4), n, replace = TRUE)),
+                      "X3" = factor(sample(c(0, 1), n, replace =  TRUE, prob = c(0.7, 0.3)))
+)
+head(sim.data)
+```
+Encoding the above dataset into dummy variables
+```{r}
+d =  daisy(sim.data, metric = "gower")
+```
+```{r}
+sim.hc = hclust(d)
+dend.hc = to.dend(sim.hc)
+test = convert_to_par(dend.hc)
+sim.tree = read.tree(text = test)
+fviz_dend(sim.hc)
+```
+```{r}
+plot(sim.tree)
+```
+\
+Testing score function now
+```{r}
+tic("Scoring time for hierarchical clustering with gower distance")
+L_score_2(sim.tree, sim.data)
+toc()
+```
 Testing Iris dataset:
 ```{r}
 flowers = iris
@@ -189,6 +241,7 @@ head(flowers)
 row.names(flowers) = c(1:nrow(flowers))
 
 flowers.onehot = one_hot(as.data.table(flowers))
+head(flowers.onehot)
 flowers.onehot = flowers.onehot %>%
   dplyr::select(-c("Species_virginica")) %>%
   scale()
