@@ -10,10 +10,11 @@ library(limSolve)
 library(mltools)
 library(data.table)
 library(factoextra)
-source("convert_to_parenthesis.R")
+source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/convert_to_parenthesis.R")
 library(foreach)
 library(doParallel)
 library(tictoc)
+library(mvMORPH)
 
 # defining one hot encoder for simap
 onehotencoder = function(miss_data){
@@ -43,6 +44,7 @@ continuous.missing = function(dend, miss_data, tol){
   return(list(y.hat, y.hat.var))
 }
 
+
 factorial.missing = function(dend, miss_data){
   onehot = onehotencoder(miss_data)
   fit_discrete = make.simmap(dend, onehot, model = "ER", pi = "estimated",
@@ -71,6 +73,7 @@ row_computing = function(types, dend, original_data, tol, col){
       results = continuous.missing(dend, miss_data, tol)
       y.pred = results[[1]]
       y.pred_var = results[[2]]
+      print(y.pred_var)
       mse = ((y.pred - saved_value)^2)/y.pred_var
       lines[i] =  mse
     }
@@ -92,6 +95,48 @@ row_computing = function(types, dend, original_data, tol, col){
   }
   return(lines)
 }
+
+row_computing2 = function(types, dend, original_data, tol, col){
+  n = nrow(original_data)
+  lines = numeric(n)
+  names = row.names(original_data)
+  j = col
+  cname = colnames(original_data)[j]
+  if (types[j] == "integer" | types[j] == "numeric"){
+    current_data = as.matrix(original_data[, j])
+    # not scaling
+    colnames(current_data) = cname
+    rownames(current_data) = names
+    fit = mvBM(dend, current_data, model = "BMM", echo = T)
+    for (i in (1:n)){
+      saved_value = current_data[i]
+      miss_data = current_data
+      miss_data[i, 1] = NA
+      imp = estim(dend, miss_data, fit)
+      y.pred = imp$estimates[imp$NA_index, 1]
+      y.pred_var = imp$var[imp$NA_index]
+      mse = ((y.pred - saved_value)^2)/y.pred_var
+      lines[i] =  mse
+    }
+  }else{
+    current_data = original_data[, j]
+    if (types[j] == "logical") current_data = as.factor(current_data)
+    for (i in (1:n)){
+      saved_value = numeric(nlevels(current_data))
+      saved_value[as.numeric(current_data)[i]] = 1
+      miss_data = current_data
+      names(miss_data) = names
+      miss_data[i] = NA
+      results = factorial.missing(dend, miss_data)
+      pi = results[[1]]
+      A.norm = results[[2]]
+      mse = (sum((saved_value - pi)^2))/A.norm
+      lines[i] = mse
+    }
+  }
+  return(lines)
+}
+
 
 # paralelized
 L_score = function(dend, original_data, tol = 1e-18){
@@ -168,4 +213,33 @@ L_score_2 = function(dend, original_data, tol = 1e-18){
   score = sum(partial_score)/total
   return(score)
 }
+
+# using mvMORPH
+L_score_3 = function(dend, original_data, tol  = 1e-20){
+  types = sapply(original_data, class)
+  p = length(original_data[1, ])
+  n = length(original_data[, 1])
+  total = p*n
+  score.matrix = matrix(0, nrow = n, ncol = p)
+  names = row.names(original_data)
+  row.names(original_data) = c(1:nrow(original_data))
+  # paralellizing
+  cores = detectCores()
+  cl = makeCluster(cores[1] - 1)
+  clusterExport(cl, c("row_computing2", "factorial.missing", "continuous.missing",
+                      "onehotencoder"))
+  registerDoParallel(cl)
+  score.matrix = foreach(j = 1:p, .combine = cbind,
+                         .export = c("row_computing2", "factorial.missing","onehotencoder"),
+                         .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
+                           lines = row_computing2(types, dend, original_data, tol, j)
+                           lines
+                         }
+  stopCluster(cl)
+  partial_score = colSums(score.matrix)
+  score = sum(partial_score)/total
+  return(score)
+}
+
+
 
