@@ -107,7 +107,12 @@ convert_to_par <- function(dend, first_it =  TRUE)
 }
 
 
-
+convert_to_phylo = function(cl.obj){
+  dend = to.dend(cl.obj)
+  dend.str = convert_to_par(dend)
+  tree = read.tree(text = dend.str)
+  return(tree)
+}
 
 
 
