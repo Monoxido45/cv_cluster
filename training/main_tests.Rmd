@@ -1,0 +1,73 @@
+---
+title: "Score tests"
+author: "Luben"
+date: "04/11/2020"
+output: html_document
+---
+```{r global_options, message=FALSE, include=FALSE}
+```
+Importing needed packages
+```{r message = FALSE}
+library(ape)
+library(dendextend)
+library(cluster)
+library(tibble)
+library(magrittr)
+library(dplyr)
+library(phytools)
+library(limSolve)
+library(mltools)
+library(data.table)
+library(factoextra)
+source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/convert_to_parenthesis.R")
+source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/cv_score.R")
+library(tictoc)
+library(Rphylopars)
+library(mvMORPH)
+library(dplyr)
+library(tidyr)
+```
+Importing USArrests:
+```{r}
+data("USArrests")
+arr.data = USArrests
+types = sapply(arr.data, class)
+types
+bool = (types == "numeric" | types == "integer")
+bool
+arr.data[, bool]
+```
+First testing hiearchical clustering:
+```{r}
+hc.obj = hclust(dist(scale(arr.data)), method = "ward.D2")
+tree = convert_to_phylo(hc.obj)
+plot(tree)
+```
+\
+After this, testing each one:
+```{r}
+tic("Running time for L_score")
+score1 = L_score(tree, arr.data)
+score1
+toc()
+
+tic("Running time for L_score_2")
+score2 = L_score_2(tree, arr.data)
+score2
+toc()
+
+tic("Running time for L_score_3")
+score3 = L_score_3(tree, arr.data)
+score3
+toc()
+
+tic("Running time for L_score_4")
+score4 = L_score_4(tree, arr.data)
+score4
+toc()
+```
+```{r}
+types = sapply(arr.data, class)
+row_computing4(types, tree, arr.data, tol = 1e-20, 1)
+```
+
