@@ -63,20 +63,21 @@ row_computing = function(types, dend, original_data, tol, col){
   lines = numeric(n)
   names = row.names(original_data)
   j = col
+  tree.order = dend$tip.label
   cname = colnames(original_data)[j]
   if (types[j] == "integer" | types[j] == "numeric"){
     current_data = as.matrix(original_data[, j])
     # not scaling
     colnames(current_data) = cname
     rownames(current_data) = names
-    fit = mvBM(dend, current_data, model = "BMM", echo = T, method = "inverse")
+    fit = mvBM(dend, current_data, model = "BM1", echo = T, method = "inverse")
     for (i in (1:n)){
       saved_value = current_data[i]
       miss_data = current_data
       miss_data[i, 1] = NA
       imp = estim(dend, miss_data, fit)
-      y.pred = imp$estimates[imp$NA_index, 1]
-      y.pred_var = imp$var[imp$NA_index]
+      y.pred = imp$estimates[i, 1]
+      y.pred_var = imp$var[i, 1]
       mse = ((y.pred - saved_value)^2)/y.pred_var
       lines[i] =  mse
     }
@@ -102,15 +103,15 @@ row_computing = function(types, dend, original_data, tol, col){
 row_computing2 = function(types, dend, original_data, tol, col){
   n = nrow(original_data)
   lines = numeric(n)
-  names = row.names(original_data)
+  row.names(original_data) = c(1:nrow(original_data))
   j = col
   cname = colnames(original_data)[j]
   if (types[j] == "integer" | types[j] == "numeric"){
     bool = (types == "numeric" | types == "integer")
     selected_data = as.data.frame(original_data[, bool])
-    row.names(selected_data) = names
+    row.names(selected_data) = row.names(original_data)
     colnames(selected_data) = colnames(original_data)[bool]
-    fit = mvBM(dend, selected_data, model = "BMM", echo = T, method = "inverse")
+    fit = mvBM(dend, selected_data, model = "BM1", echo = T, method = "inverse")
     current_data = as.matrix(original_data[, j])
     # not scaling
     for (i in (1:n)){
@@ -118,8 +119,11 @@ row_computing2 = function(types, dend, original_data, tol, col){
       miss_data = selected_data
       miss_data[i, j] = NA
       imp = estim(dend, miss_data, fit)
-      y.pred = imp$estimates[imp$NA_index, 1]
-      y.pred_var = imp$var[imp$NA_index]
+      print(imp$estimates)
+      print(imp$var)
+      print(saved_value)
+      y.pred = imp$estimates[i, j]
+      y.pred_var = imp$var[i, j]
       mse = ((y.pred - saved_value)^2)/y.pred_var
       lines[i] =  mse
     }
@@ -145,10 +149,12 @@ row_computing2 = function(types, dend, original_data, tol, col){
 row_computing3 = function(types, dend, original_data, tol, col){
   n = nrow(original_data)
   lines = numeric(n)
-  names = row.names(original_data)
+  names = c(1:nrow(original_data))
   j = col
   cname = colnames(original_data)[j]
+  tree.order = dend$tip.label
   if (types[j] == "integer" | types[j] == "numeric"){
+    bool = (types == "numeric" | types == "integer")
     current_data = as.matrix(original_data[, j])
     # not scaling
     colnames(current_data) = cname
@@ -160,10 +166,10 @@ row_computing3 = function(types, dend, original_data, tol, col){
       colnames(miss_data) = colnames(current_data)
       rownames(miss_data) = rownames(current_data)
       miss_data[i, 1] = NA
-      fit = mvBM(sim.test, miss_data, model = "BMM", method = "inverse")
+      fit = mvBM(dend, miss_data, model = "BMM", method = "inverse")
       imp = estim(dend, miss_data, fit)
-      y.pred = imp$estimates[imp$NA_index, 1]
-      y.pred_var = imp$var[imp$NA_index]
+      y.pred = imp$estimates[i, 1]
+      y.pred_var = imp$var[i ,1]
       mse = ((y.pred - saved_value)^2)/y.pred_var
       lines[i] =  mse
     }
@@ -189,15 +195,15 @@ row_computing3 = function(types, dend, original_data, tol, col){
 row_computing4 = function(types, dend, original_data, tol, col){
   n = nrow(original_data)
   lines = numeric(n)
-  names = row.names(original_data)
+  names = c(1:nrow(original_data))
   j = col
   cname = colnames(original_data)[j]
   if (types[j] == "integer" | types[j] == "numeric"){
     bool = (types == "numeric" | types == "integer")
     selected_data = as.data.frame(original_data[, bool])
-    row.names(selected_data) = names
     colnames(selected_data) = colnames(original_data)[bool]
-    current_data = original_data[, j]
+    row.names(selected_data) = names
+    current_data = as.matrix(original_data[, j])
     # not scaling
     for (i in (1:n)){
       saved_value = current_data[i]
@@ -205,8 +211,11 @@ row_computing4 = function(types, dend, original_data, tol, col){
       miss_data[i, j] = NA
       fit = mvBM(dend, miss_data, model = "BMM", echo = T, method = "inverse")
       imp = estim(dend, miss_data, fit)
-      y.pred = imp$estimates[imp$NA_index, 1]
-      y.pred_var = imp$var[imp$NA_index]
+      print(imp$estimates)
+      print(imp$var)
+      print(saved_value)
+      y.pred = imp$estimates[i, j]
+      y.pred_var = imp$var[i, j]
       mse = ((y.pred - saved_value)^2)/y.pred_var
       lines[i] =  mse
     }
@@ -238,7 +247,8 @@ L_score = function(dend, original_data, tol  = 1e-20){
   total = p*n
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
-  row.names(original_data) = c(1:nrow(original_data))
+  row.names(original_data)  = c(1:nrow(original_data))
+  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
@@ -248,7 +258,7 @@ L_score = function(dend, original_data, tol  = 1e-20){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing2(types, dend, original_data, tol, j)
+                           lines = row_computing(types, dend, original_data, tol, j)
                            lines
                          }
   stopCluster(cl)
@@ -265,11 +275,12 @@ L_score_2 = function(dend, original_data, tol  = 1e-20){
   total = p*n
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
-  row.names(original_data) = c(1:nrow(original_data))
+  row.names(original_data)  = c(1:nrow(original_data))
+  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
-  clusterExport(cl, c("row_computing", "factorial.missing", "continuous.missing",
+  clusterExport(cl, c("row_computing2", "factorial.missing", "continuous.missing",
                       "onehotencoder"))
   registerDoParallel(cl)
   score.matrix = foreach(j = 1:p, .combine = cbind,
@@ -291,7 +302,8 @@ L_score_3 = function(dend, original_data, tol  = 1e-20){
   total = p*n
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
-  row.names(original_data) = c(1:nrow(original_data))
+  row.names(original_data)  = c(1:nrow(original_data))
+  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
@@ -301,7 +313,7 @@ L_score_3 = function(dend, original_data, tol  = 1e-20){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing3", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing2(types, dend, original_data, tol, j)
+                           lines = row_computing3(types, dend, original_data, tol, j)
                            lines
                          }
   stopCluster(cl)
@@ -317,7 +329,8 @@ L_score_4 = function(dend, original_data, tol  = 1e-20){
   total = p*n
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
-  row.names(original_data) = c(1:nrow(original_data))
+  row.names(original_data)  = c(1:nrow(original_data))
+  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
@@ -327,7 +340,7 @@ L_score_4 = function(dend, original_data, tol  = 1e-20){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing4", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing2(types, dend, original_data, tol, j)
+                           lines = row_computing4(types, dend, original_data, tol, j)
                            lines
                          }
   stopCluster(cl)
