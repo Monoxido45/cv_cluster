@@ -45,20 +45,18 @@ continuous.missing = function(dend, miss_data, tol){
 }
 
 
-factorial.missing = function(dend, miss_data){
+factorial.missing = function(dend, miss_data, row){
   onehot = onehotencoder(miss_data)
-  fit_discrete = make.simmap(dend, onehot, model = "ER", pi = "estimated",
-                             message = FALSE, nsim = 10)
-  Q = as.matrix(fit_discrete$Q)
-  dim = nrow(Q)
-  pi = xranges(E = matrix(1, nrow = dim, ncol = dim), F = rep(1, dim),
-          G = t(Q), H = rep(0, dim))[, 1]
-  A.norm = dim
-  return(list(pi, A.norm))
+  fit_discrete = make.simmap(as.multiPhylo(dend), onehot, model = "ER",
+                             message = FALSE)
+  results = describe.simmap(fit_discrete, plot = F)
+  which_row = which(rownames(results$tips) == row)
+  pi = results$tips[which_row, ]
+  return(pi)
 }
 
 
-row_computing = function(types, dend, original_data, tol, col){
+row_computing = function(types, dend, original_data, tol,seed, col){
   n = nrow(original_data)
   lines = numeric(n)
   names = row.names(original_data)
@@ -70,10 +68,11 @@ row_computing = function(types, dend, original_data, tol, col){
     # not scaling
     colnames(current_data) = cname
     rownames(current_data) = names
-    fit = mvBM(dend, current_data, model = "BM1", echo = T, method = "inverse")
+    fit = mvBM(dend, current_data, model = "BMM", echo = T, method = "inverse")
     for (i in (1:n)){
       saved_value = current_data[i]
       miss_data = current_data
+      names(miss_data) = names
       miss_data[i, 1] = NA
       imp = estim(dend, miss_data, fit)
       y.pred = imp$estimates[i, 1]
@@ -84,23 +83,23 @@ row_computing = function(types, dend, original_data, tol, col){
   }else{
     current_data = original_data[, j]
     if (types[j] == "logical") current_data = as.factor(current_data)
+    set.seed(seed)
     for (i in (1:n)){
       saved_value = numeric(nlevels(current_data))
       saved_value[as.numeric(current_data)[i]] = 1
       miss_data = current_data
+      A = nlevels(miss_data)
       names(miss_data) = names
       miss_data[i] = NA
-      results = factorial.missing(dend, miss_data)
-      pi = results[[1]]
-      A.norm = results[[2]]
-      mse = (sum((saved_value - pi)^2))/A.norm
-      lines[i] = mse
+      pi = factorial.missing(dend, miss_data, i)
+      mse = (sum((saved_value - pi)^2))
+      lines[i] = mse/A
     }
   }
   return(lines)
 }
 
-row_computing2 = function(types, dend, original_data, tol, col){
+row_computing2 = function(types, dend, original_data, tol, seed, col){
   n = nrow(original_data)
   lines = numeric(n)
   row.names(original_data) = c(1:nrow(original_data))
@@ -111,7 +110,7 @@ row_computing2 = function(types, dend, original_data, tol, col){
     selected_data = as.data.frame(original_data[, bool])
     row.names(selected_data) = row.names(original_data)
     colnames(selected_data) = colnames(original_data)[bool]
-    fit = mvBM(dend, selected_data, model = "BM1", echo = T, method = "inverse")
+    fit = mvBM(dend, selected_data, model = "BMM", echo = T, method = "inverse")
     current_data = as.matrix(original_data[, j])
     # not scaling
     for (i in (1:n)){
@@ -130,6 +129,7 @@ row_computing2 = function(types, dend, original_data, tol, col){
   }else{
     current_data = original_data[, j]
     if (types[j] == "logical") current_data = as.factor(current_data)
+    set.seed(seed)
     for (i in (1:n)){
       saved_value = numeric(nlevels(current_data))
       saved_value[as.numeric(current_data)[i]] = 1
@@ -146,7 +146,7 @@ row_computing2 = function(types, dend, original_data, tol, col){
   return(lines)
 }
 
-row_computing3 = function(types, dend, original_data, tol, col){
+row_computing3 = function(types, dend, original_data, tol, seed, col){
   n = nrow(original_data)
   lines = numeric(n)
   names = c(1:nrow(original_data))
@@ -176,6 +176,7 @@ row_computing3 = function(types, dend, original_data, tol, col){
   }else{
     current_data = original_data[, j]
     if (types[j] == "logical") current_data = as.factor(current_data)
+    set.seed(seed)
     for (i in (1:n)){
       saved_value = numeric(nlevels(current_data))
       saved_value[as.numeric(current_data)[i]] = 1
@@ -192,7 +193,7 @@ row_computing3 = function(types, dend, original_data, tol, col){
   return(lines)
 }
 
-row_computing4 = function(types, dend, original_data, tol, col){
+row_computing4 = function(types, dend, original_data, tol, seed, col){
   n = nrow(original_data)
   lines = numeric(n)
   names = c(1:nrow(original_data))
@@ -222,6 +223,7 @@ row_computing4 = function(types, dend, original_data, tol, col){
   }else{
     current_data = original_data[, j]
     if (types[j] == "logical") current_data = as.factor(current_data)
+    set.seed(seed)
     for (i in (1:n)){
       saved_value = numeric(nlevels(current_data))
       saved_value[as.numeric(current_data)[i]] = 1
@@ -240,7 +242,7 @@ row_computing4 = function(types, dend, original_data, tol, col){
 
 
 # using mvMORPH
-L_score = function(dend, original_data, tol  = 1e-20){
+L_score = function(dend, original_data, tol  = 1e-20, seed = 99){
   types = sapply(original_data, class)
   p = length(original_data[1, ])
   n = length(original_data[, 1])
@@ -258,7 +260,7 @@ L_score = function(dend, original_data, tol  = 1e-20){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing(types, dend, original_data, tol, j)
+                           lines = row_computing(types, dend, original_data, tol, seed, j)
                            lines
                          }
   stopCluster(cl)
@@ -268,7 +270,7 @@ L_score = function(dend, original_data, tol  = 1e-20){
 }
 
 
-L_score_2 = function(dend, original_data, tol  = 1e-20){
+L_score_2 = function(dend, original_data, tol  = 1e-20, seed = 99){
   types = sapply(original_data, class)
   p = length(original_data[1, ])
   n = length(original_data[, 1])
@@ -286,7 +288,7 @@ L_score_2 = function(dend, original_data, tol  = 1e-20){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing2", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing2(types, dend, original_data, tol, j)
+                           lines = row_computing2(types, dend, original_data, tol, seed, j)
                            lines
                          }
   stopCluster(cl)
@@ -295,7 +297,7 @@ L_score_2 = function(dend, original_data, tol  = 1e-20){
   return(score)
 }
 
-L_score_3 = function(dend, original_data, tol  = 1e-20){
+L_score_3 = function(dend, original_data, tol  = 1e-20, seed = 99){
   types = sapply(original_data, class)
   p = length(original_data[1, ])
   n = length(original_data[, 1])
@@ -313,7 +315,7 @@ L_score_3 = function(dend, original_data, tol  = 1e-20){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing3", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing3(types, dend, original_data, tol, j)
+                           lines = row_computing3(types, dend, original_data, tol, seed, j)
                            lines
                          }
   stopCluster(cl)
@@ -322,7 +324,7 @@ L_score_3 = function(dend, original_data, tol  = 1e-20){
   return(score)
 }
 
-L_score_4 = function(dend, original_data, tol  = 1e-20){
+L_score_4 = function(dend, original_data, tol  = 1e-20, seed = 99){
   types = sapply(original_data, class)
   p = length(original_data[1, ])
   n = length(original_data[, 1])
@@ -340,13 +342,33 @@ L_score_4 = function(dend, original_data, tol  = 1e-20){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing4", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing4(types, dend, original_data, tol, j)
+                           lines = row_computing4(types, dend, original_data, tol, seed, j)
                            lines
                          }
   stopCluster(cl)
   partial_score = colSums(score.matrix)
   score = sum(partial_score)/total
   return(score)
+}
+
+L_cross_val = function(clust.obj, original_data,tol = 1e-20, seed = 99){
+  p = ncol(original_data)
+  if (is.list(clust.obj) == T){
+    tops = lapply(clust.obj, FUN = convert_to_phylo)
+    results = matrix(nrow = p, ncol = length(tops))
+    for(k in (1:p)){
+      training_data = original_data[, -c(k)]
+      results[k, ] = sapply(tops, FUN = L_score, original_data = training_data)
+    }
+  }else{
+    results = numeric(p)
+    top = convert_to_phylo(clust.obj)
+    for(k in (1:p)){
+      training_data = original_data[, -c(k)]
+      results[k] = L_score(top, traning_data)
+  }
+  }
+  return(results)
 }
 
 
