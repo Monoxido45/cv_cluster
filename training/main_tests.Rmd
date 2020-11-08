@@ -22,10 +22,11 @@ library(factoextra)
 source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/convert_to_parenthesis.R")
 source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/cv_score.R")
 library(tictoc)
-library(Rphylopars)
 library(mvMORPH)
 library(dplyr)
 library(tidyr)
+library(RColorBrewer)
+library(MASS)
 ```
 Importing USArrests:
 ```{r}
@@ -68,6 +69,291 @@ toc()
 ```
 ```{r}
 types = sapply(arr.data, class)
-row_computing4(types, tree, arr.data, tol = 1e-20, 1)
+row_computing2(types, tree, arr.data, tol = 1e-20, 1)
+```
+Now we can test for several types of clustering using score 1, 2 and 3:
+```{r}
+d = dist(scale(arr.data))
+tree.list = list()
+hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+ward.d2.hc = hclust(d, method = "ward.D2"),
+single.hc = hclust(d, method = "single"),
+complete.hc = hclust(d, method = "complete"),
+ave.hc = hclust(d, method = "average"),
+med.hc = hclust(d, method = "median"),
+centroid.hc = hclust(d, method = "centroid"),
+mcquitty.hc = hclust(d, method = "mcquitty"),
+agnes.hc = agnes(scale(arr.data)),
+diana.hc = diana(scale(arr.data)))
+for (i in (1:length(hc.list))){
+  tree.list[[i]] =  convert_to_phylo(hc.list[[i]])
+}
+names(tree.list) = names(hc.list)
+
+nscores = 3
+score.type = factor(c(rep(1, length(tree.list)), rep(2, length(tree.list)), 
+                 rep(3, length(tree.list))))
+measurements = numeric(length(tree.list)*nscores)
+cl.names = rep(names(hc.list), nscores)
+tree.rep = rep(tree.list, nscores)
+tic("Running time of scoring function for the 10 clustering methdos")
+for(j in (1:(nscores*length(tree.list)))){
+    if (score.type[j] == 1){
+      measurements[j] = L_score(tree.rep[[j]], arr.data)
+    }else{
+      if (score.type[j] == 2){
+      measurements[j] = L_score_2(tree.rep[[j]], arr.data)
+      }else{
+      measurements[j] = L_score_3(tree.rep[[j]], arr.data)
+      }
+    }
+}
+toc()
+data.scores =  data.frame("measurements" = measurements,
+                          "score_type" = score.type,
+                          "cluster" = as.factor(cl.names))
+head(data.scores)
+```
+\ 
+Now graphing the above data frame:
+```{r}
+nb.cols = 10
+mycolors = colorRampPalette(brewer.pal(10, "Paired"))(nb.cols)
+data.scores %>%
+  ggplot( aes(x = score_type, y  = measurements, group = cluster)) +
+  geom_line(aes(color = cluster)) +
+  geom_point(aes(color = cluster)) +
+   scale_colour_manual(values = mycolors) +
+  theme_bw()+
+  scale_y_continuous(breaks = round(seq(min(data.scores$measurements), 
+                                        max(data.scores$measurements), 
+                                        by = 3),1)) +
+  labs(title = "Comparisson of score type with clustering method",
+       x = "Score Type",
+       y = "Measurements",
+       colour = "Clustering methods") +
+  ggsave(filename = "comps_USArrests.png",
+         path = "C:/Users/lucru/Estatística_UFSCar/datasets",
+                    width = 18.75, height = 11.5, units = "cm")
+```
+\
+Comparing just the score type 1 and 3
+```{r}
+mutated_data.frame = data.scores %>%
+  filter(score_type != 2)
+mutated_data.frame %>%
+  ggplot( aes(x = score_type, y  = measurements, group = cluster)) +
+  geom_line(aes(color = cluster)) +
+  geom_point(aes(color = cluster)) +
+   scale_colour_manual(values = mycolors) +
+  theme_bw()+
+  labs(title = "Comparisson of score type with clustering method",
+       x = "Score Type",
+       y = "Measurements",
+       colour = "Clustering methods") +
+  ggsave(filename = "comps_1_3_USArrests.png",
+         path = "C:/Users/lucru/Estatística_UFSCar/datasets",
+                    width = 18.75, height = 11.5, units = "cm")
+```
+\
+Simulating multivariate normal
+```{r}
+set.seed(6)
+p = 5
+# defining mu and sigma
+mu_0 = c(2, 4, 6, 1, 5)
+n = 5  
+A = matrix(runif(n^2,1, 2)*(1.25)-1, ncol=n) 
+S = t(A) %*% A
+S
+```
+```{r}
+set.seed(99)
+n =  400
+cont.data = as.data.frame(mvrnorm(n, mu =  mu_0, Sigma = S))
+colnames(cont.data) = c("X1", "X2", "X3", "X4", "X5")
+head(cont.data)
+```
+Assessing correlation:
+```{r}
+cor(cont.data)
+```
+First testing just to Hclust
+```{r}
+hc.obj = hclust(dist(scale(cont.data)), method = "ward.D2")
+tree = convert_to_phylo(hc.obj)
+```
+```{r}
+tic("Running time for L_score")
+score1 = L_score(tree, cont.data)
+score1
+toc()
+
+tic("Running time for L_score_3")
+score3 = L_score_3(tree, cont.data)
+score3
+toc()
+
+
+tic("Running time for L_score_2")
+score2 = L_score_2(tree, cont.data)
+score2
+toc()
+
+```
+```{r}
+d = dist(scale(cont.data))
+tree.list = list()
+hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+ward.d2.hc = hclust(d, method = "ward.D2"),
+single.hc = hclust(d, method = "single"),
+complete.hc = hclust(d, method = "complete"),
+ave.hc = hclust(d, method = "average"),
+med.hc = hclust(d, method = "median"),
+centroid.hc = hclust(d, method = "centroid"),
+mcquitty.hc = hclust(d, method = "mcquitty"),
+agnes.hc = agnes(scale(cont.data)),
+diana.hc = diana(scale(cont.data)))
+for (i in (1:length(hc.list))){
+  tree.list[[i]] =  convert_to_phylo(hc.list[[i]])
+}
+names(tree.list) = names(hc.list)
+
+nscores = 2
+score.type = factor(c(rep(1, length(tree.list)), 
+                 rep(3, length(tree.list))))
+measurements = numeric(length(tree.list)*nscores)
+cl.names = rep(names(hc.list), nscores)
+tree.rep = rep(tree.list, nscores)
+tic("Running time of scoring function for the 10 clustering methdos")
+for(j in (1:(nscores*length(tree.list)))){
+    if (score.type[j] == 1){
+      measurements[j] = L_score(tree.rep[[j]], cont.data)
+    }else{
+      measurements[j] = L_score_3(tree.rep[[j]], cont.data)
+    }
+}
+toc()
+data.scores =  data.frame("measurements" = measurements,
+                          "score_type" = score.type,
+                          "cluster" = as.factor(cl.names))
+head(data.scores)
+```
+Graph of the above  data:
+```{r}
+data.scores %>%
+  ggplot( aes(x = score_type, y  = measurements, group = cluster)) +
+  geom_line(aes(color = cluster)) +
+  geom_point(aes(color = cluster)) +
+   scale_colour_manual(values = mycolors) +
+  theme_bw()+
+  labs(title = "Comparisson of score type with clustering method",
+       x = "Score Type",
+       y = "Measurements",
+       colour = "Clustering methods") +
+  ggsave(filename = "normcomps.png",
+         path = "C:/Users/lucru/Estatística_UFSCar/datasets",
+                    width = 18.75, height = 11.5, units = "cm")
+```
+\
+Generating dependent multivariate normal
+```{r}
+set.seed(120)
+n = 60
+p = 2
+
+Y = sample(c(0, 1), n, replace = TRUE, prob = c(0.6, 0.4))
+mu_0 = c(2, 4)
+mu_1 = c(4, 6)
+S_0 = cbind(c(4, 1), c(1, 2))
+S_1 = cbind(c(10, 5), c(5, 6))
+
+
+X = matrix(nrow = n, ncol = p)
+X[Y == 0, ] = mvrnorm(sum(Y == 0), mu_0, S_0)
+X[Y == 1, ] = mvrnorm(sum(Y == 1), mu_1, S_1)
+
+sim.data = as.data.frame(cbind(X , Y))
+sim.data$Y = as.factor(Y)
+colnames(sim.data) = c("X1", "X2", "Y")
+row.names(sim.data) = c(1:nrow(sim.data))
+head(sim.data)
+```
+```{r}
+hc.obj = hclust(dist(scale(sim.data[, c(1,2)])), method = "ward.D2")
+tree = convert_to_phylo(hc.obj)
+plot(tree)
+```
+/
+```{r}
+set.seed(99)
+pi = matrix(nrow = n, ncol = 2)
+tic("Time of several simmap computations")
+for(i in (1:n)){
+  teste = sim.data$Y
+  teste[i] = NA
+  onehot = onehotencoder(teste)
+  row.names(onehot) = row.names(sim.data)
+  fit_discrete = make.simmap(as.multiPhylo(tree), onehot, model = "ER", message = FALSE)
+  results = describe.simmap(fit_discrete, plot = F)
+  which_row = which(rownames(results$tips) == i)
+  pi[i, ] = results$tips[which_row, ]
+}
+toc()
+head(pi)
+pred = ifelse(pi[, 2] == 1, 1, 0)
+pred
+```
+```{r}
+L_score(tree, sim.data)
+```
+```{r}
+tipo = sapply(sim.data, class)
+row_computing(tipo, tree, sim.data, tol = 1e-20, seed = 45, col = 3)
+```
+Checking hits:
+```{r}
+hits = sum(pred == sim.data$Y)
+hits
+```
+Generating interesting graphs for the presentation:
+
+
+
+
+Making simulation for IRIS dataset
+```{r}
+flowers = iris
+d = daisy(flowers, metric = "gower")
+flowers.hc = hclust(d, method = "ward.D2")
+flowers.tree = convert_to_phylo(flowers.hc)
+flowers.tree$edge.length[which(flowers.tree$edge.length %in% c(0))] = 10^(-4)
+tic("Computation time  for iris dataset")
+hc_score = L_score(flowers.tree,  flowers)
+toc()
+```
+```{r}
+d = dist(scale(arr.data))
+tree.list = list()
+hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+ward.d2.hc = hclust(d, method = "ward.D2"),
+single.hc = hclust(d, method = "single"),
+complete.hc = hclust(d, method = "complete"),
+ave.hc = hclust(d, method = "average"),
+med.hc = hclust(d, method = "median"),
+centroid.hc = hclust(d, method = "centroid"),
+mcquitty.hc = hclust(d, method = "mcquitty"),
+agnes.hc = agnes(scale(arr.data)),
+diana.hc = diana(scale(arr.data)))
+
+tops = lapply(hc.list, FUN = convert_to_phylo)
+sapply(tops, FUN =  L_score, original_data = arr.data)
+length(tops)
+```
+Testing cross-validation function:
+```{r}
+tic("Cross validation in USArrests")
+arr.cross_val = L_cross_val(hc.list, arr.data)
+toc()
 ```
 

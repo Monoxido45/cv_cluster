@@ -113,9 +113,6 @@ sim.agnes = agnes(scale(new_data.sim))
 dend.agnes = to.dend(sim.agnes)
 test = convert_to_par(dend.agnes)
 sim.test= read.tree(text = test)
-
-# comparing fviz_dend
-fviz_dend(sim.agnes)
 ```
 \
 With normal plot:
@@ -147,7 +144,12 @@ Testing *mvMORPH* fitting only one column:
 ```{r}
 # fitting a phylogenetic model
 tic("Running time of fitting")
-fit = mvBM(sim.test, as.data.frame(new_data.sim[, 1]), model = "BMM")
+temp = new_data.sim[, 1]
+temp = as.data.frame(temp)
+temp[1, ] = NA
+colnames(temp) = colnames(new_data.sim)[1]
+rownames(temp) = rownames(new_data.sim)
+fit = mvBM(sim.test, temp, model = "BM1", method = "inverse")
 toc()
 ```
 Then estimating some missing states:
@@ -353,11 +355,12 @@ set.seed(7*14)
 n = 85
 sim.data = data.frame("X1" = factor(sample(c(1,2,3), n, replace = TRUE)),
                       "X2" = factor(sample(c(1,2,3,4), n, replace = TRUE)),
-                      "X3" = factor(sample(c(0, 1), n, replace =  TRUE, prob = c(0.7, 0.3)))
+                      "X3" = factor(sample(c(0, 1), n, replace =  TRUE, prob = c(0.7, 0.3))),
+                      "X4" = factor(sample(c(0, 1, 2), n, replace = TRUE, prob = c(0.65, 0.05, 0.3)))
 )
 head(sim.data)
 ```
-Encoding the above dataset into dummy variables
+Making gowe matrix and fitting
 ```{r}
 d =  daisy(sim.data, metric = "gower")
 ```
@@ -372,6 +375,126 @@ fviz_dend(sim.hc)
 plot(sim.tree)
 ```
 \
+Checking effects of chunk separation and different NA positions for pi:
+```{r}
+test = sim.data$X1
+test2 = sim.data$X1
+names(test) = row.names(sim.data)
+names(test2) = row.names(sim.data)
+test[4] = NA
+test2[3] = NA
+onehot1 = onehotencoder(test)
+onehot2 = onehotencoder(test2)
+
+
+fit_discrete = make.simmap(as.multiPhylo(sim.tree), onehot1, model = "ER",
+                             message = FALSE, pi = "estimated")
+
+fit_discrete2 = make.simmap(as.multiPhylo(sim.tree), onehot2, model = "ER",
+                             message = FALSE, pi = "estimated")
+
+results = describe.simmap(fit_discrete, plot = F)
+results2  = describe.simmap(fit_discrete2, plot = F)
+
+results$tips[row.names(results$tips) ==  "4"]
+results2$tips[row.names(results$tips) ==  "3"]
+```
+```{r}
+Q = as.matrix(fit_discrete$Q)
+dim = nrow(Q)
+pi = xranges(E = matrix(1, nrow = dim, ncol = dim), F = rep(1, dim),
+          G = t(Q), H = rep(0, dim))[, 1]
+  
+  
+Q2 = as.matrix(fit_discrete2$Q)
+  dim = nrow(Q2)
+pi2 = xranges(E = matrix(1, nrow = dim, ncol = dim), F = rep(1, dim),
+          G = t(Q2), H = rep(0, dim))[, 1]
+
+pi
+pi2
+```
+
+```{r}
+set.seed(190)
+test = sim.data$X4
+test2 = sim.data$X4
+names(test) = row.names(sim.data)
+names(test2) = row.names(sim.data)
+pos = sample(1:nrow(sim.data), 2)
+test[pos[1]] = rep(NA, 1)
+test2[pos[2]] = rep(NA, 1)
+onehot1 = onehotencoder(test)
+onehot2 = onehotencoder(test2)
+fit_discrete = make.simmap(as.multiPhylo(sim.tree), onehot1, model = "ER", message = FALSE)
+
+fit_discrete2 = make.simmap(as.multiPhylo(sim.tree), onehot2, model = "ER",
+                             message = FALSE)
+
+results = describe.simmap(fit_discrete, plot = F)
+results2  = describe.simmap(fit_discrete2, plot = F)
+
+results$tips[row.names(results$tips) ==  pos[1]]
+results2$tips[row.names(results$tips) ==  pos[2]]
+```
+Doing it with mixed data:
+```{r}
+set.seed(99)
+n = 85
+sim.data = data.frame(
+  "X1" = rnorm(n, 2, 1),
+  "X2" = runif(n , 3, 6),
+  "X3" = factor(sample(c(0, 1), n, replace =  TRUE, prob = c(0.7, 0.3))),
+  "X4" = factor(sample(c(0, 1, 2), n, replace = TRUE, prob = c(0.65, 0.05, 0.3))))
+head(sim.data)
+```
+```{r}
+d =  daisy(sim.data, metric = "gower")
+```
+```{r}
+sim.hc = hclust(d)
+dend.hc = to.dend(sim.hc)
+test = convert_to_par(dend.hc)
+sim.tree = read.tree(text = test)
+fviz_dend(sim.hc)
+```
+```{r}
+set.seed(190)
+test = sim.data$X4
+test2 = sim.data$X4
+names(test) = row.names(sim.data)
+names(test2) = row.names(sim.data)
+test[sample(1:nrow(sim.data),10)] = rep(NA, 10)
+test2[sample(1:nrow(sim.data), 10)] = rep(NA, 10)
+priori = as.data.frame(table(test))[, 2]
+priori_2 = as.data.frame(table(test2))[, 2]
+priori = priori/(sum(priori))
+priori_2 = priori_2/(sum(priori_2))
+
+onehot1 = onehotencoder(test)
+onehot2 = onehotencoder(test2)
+fit_discrete = make.simmap(sim.tree, onehot1, model = "ER", pi  = priori,
+                           message = F)
+
+
+fit_discrete2 = make.simmap(sim.tree, onehot2, model = "ER", pi = priori_2,
+                            message = F)
+
+
+Q = as.matrix(fit_discrete$Q)
+dim = nrow(Q)
+pi = xranges(E = matrix(1, nrow = dim, ncol = dim), F = rep(1, dim),
+          G = t(Q), H = rep(0, dim))[, 1]
+  
+  
+Q2 = as.matrix(fit_discrete2$Q)
+  dim = nrow(Q2)
+pi_2 = xranges(E = matrix(1, nrow = dim, ncol = dim), F = rep(1, dim),
+          G = t(Q2), H = rep(0, dim))[, 1]
+
+pi
+pi_2
+```
 Testing score function now
 ```{r}
 tic("Scoring time for hierarchical clustering with gower distance")
@@ -417,6 +540,7 @@ tic("Scoring time for hiearchical clustering in iris dataset")
 score = L_score(flowers.tree.hc, flowers)
 toc()
 ```
+
 
 
 
