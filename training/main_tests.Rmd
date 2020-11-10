@@ -15,7 +15,6 @@ library(tibble)
 library(magrittr)
 library(dplyr)
 library(phytools)
-library(limSolve)
 library(mltools)
 library(data.table)
 library(factoextra)
@@ -27,6 +26,7 @@ library(dplyr)
 library(tidyr)
 library(RColorBrewer)
 library(MASS)
+library(kableExtra)
 ```
 Importing USArrests:
 ```{r}
@@ -316,22 +316,7 @@ Checking hits:
 hits = sum(pred == sim.data$Y)
 hits
 ```
-Generating interesting graphs for the presentation:
-
-
-
-
-Making simulation for IRIS dataset
-```{r}
-flowers = iris
-d = daisy(flowers, metric = "gower")
-flowers.hc = hclust(d, method = "ward.D2")
-flowers.tree = convert_to_phylo(flowers.hc)
-flowers.tree$edge.length[which(flowers.tree$edge.length %in% c(0))] = 10^(-4)
-tic("Computation time  for iris dataset")
-hc_score = L_score(flowers.tree,  flowers)
-toc()
-```
+Picking results for differents topologies in USArrests:
 ```{r}
 d = dist(scale(arr.data))
 tree.list = list()
@@ -345,15 +330,150 @@ centroid.hc = hclust(d, method = "centroid"),
 mcquitty.hc = hclust(d, method = "mcquitty"),
 agnes.hc = agnes(scale(arr.data)),
 diana.hc = diana(scale(arr.data)))
+tree.list = lapply(hc.list, FUN = convert_to_phylo)
 
-tops = lapply(hc.list, FUN = convert_to_phylo)
-sapply(tops, FUN =  L_score, original_data = arr.data)
-length(tops)
+tic("Running time for topologie")
+results = sapply(tree.list, FUN = L_score, original_data = arr.data)
+round(results, 4)
 ```
-Testing cross-validation function:
 ```{r}
-tic("Cross validation in USArrests")
-arr.cross_val = L_cross_val(hc.list, arr.data)
+tic("Running time of cross_validation for USArrests")
+cross_val = L_cross_val(arr.data)
+cross_val
 toc()
 ```
+```{r}
+cross_data = as.data.frame(t(cross_val))
+rownames(cross_data) = c("Ward HC", "Ward D2 HC", "Single HC", "Complete HC", "Average HC",
+                         "Median HC", "Centroid HC", "Mcquitty HC", "Agnes", "Diana")
+marginal_data = cross_data %>%
+  mutate(Sum = rowSums(cross_data))
+sums = as.data.frame(marginal_data$Sum)
+colnames(sums) = "Sum"
+
+round(sums, 4) %>%
+  kbl() %>%
+kable_classic(full_width = F, html_font = "TimesNewRoman") %>%
+  kable_styling(position = "center")
+```
+```{r}
+round(cross_data,4) %>%
+  kbl() %>%
+kable_classic(full_width = F, html_font = "TimesNewRoman") %>%
+  kable_styling(position = "center")
+```
+Generating interesting graphs for the presentation
+```{r}
+d = dist(scale(arr.data))
+single.hc = hclust(d, method = "single")
+fviz_dend(single.hc, title = "Dendrogram of USArrests for single HC")+
+  fviz_dend()
+```
+
+
+```{r}
+single.tree = convert_to_phylo(single.hc)
+x = setNames(arr.data[,1],gsub(" ", "", rownames(arr.data)))
+reordered_x = x[single.tree$tip.label]
+
+obj = contMap(single.tree, reordered_x, plot=FALSE)
+obj = setMap(obj,invert=TRUE)
+plot(obj,fsize=c(0.7,1),outline=FALSE,lwd=c(3,7),leg.txt="Murder")
+```
+\
+And for Assault
+```{r}
+x = setNames(arr.data[,2],gsub(" ", "", rownames(arr.data)))
+reordered_x = x[single.tree$tip.label]
+
+obj = contMap(single.tree, reordered_x, plot=FALSE)
+obj = setMap(obj,invert=TRUE)
+plot(obj,fsize=c(0.7,1),outline=FALSE,lwd=c(3,7),leg.txt="Assault")
+```
+
+Making simulation for IRIS dataset
+```{r}
+flowers = iris
+d = daisy(flowers, metric = "gower")
+flowers.hc = hclust(d, method = "ward.D2")
+fviz_dend(flowers.hc)
+```
+```{r}
+flowers.tree = convert_to_phylo(flowers.hc)
+tic("Computation time  for iris dataset")
+hc_score = L_score(flowers.tree,  flowers)
+toc()
+```
+```{r}
+tic()
+cross_val.flowers = L_cross_val(flowers)
+cross_val.flowers
+toc()
+```
+Using multivariate normal dataset:
+```{r}
+set.seed(120)
+n = 70
+p = 2
+
+Y = sample(c(0, 1), n, replace = TRUE, prob = c(0.5, 0.5))
+mu_0 = c(2, 4)
+mu_1 = c(4, 6)
+S_0 = cbind(c(4, 1), c(1, 2))
+S_1 = cbind(c(10, 5), c(5, 6))
+
+
+X = matrix(nrow = n, ncol = p)
+X[Y == 0, ] = round(mvrnorm(sum(Y == 0), mu_0, S_0), 4)
+X[Y == 1, ] = round(mvrnorm(sum(Y == 1), mu_1, S_1), 4)
+
+sim.data = as.data.frame(cbind(X , Y))
+sim.data$Y = as.factor(Y)
+colnames(sim.data) = c("X1", "X2", "Y")
+row.names(sim.data) = c(1:nrow(sim.data))
+head(sim.data, 4)
+```
+```{r}
+tic("Running time of cross_validation for multivariate normal")
+cross_val = L_cross_val(sim.data, cl.method = "factors")
+cross_val
+toc()
+```
+```{r}
+cross_data = as.data.frame(t(cross_val))
+rownames(cross_data) = c("Ward HC", "Ward D2 HC", "Single HC", "Complete HC", "Average HC", "Mcquitty HC", "Agnes", "Diana")
+marginal_data = cross_data %>%
+  mutate(Sum = rowSums(cross_data))
+sums = as.data.frame(marginal_data$Sum)
+colnames(sums) = "Sum"
+
+round(sums, 4) %>%
+  kbl() %>%
+kable_classic(full_width = F, html_font = "TimesNewRoman") %>%
+  kable_styling(position = "center")
+```
+```{r}
+round(cross_data,4) %>%
+  kbl() %>%
+kable_classic(full_width = F, html_font = "TimesNewRoman") %>%
+  kable_styling(position = "center")
+```
+Making graph for presentation
+```{r}
+d = daisy(sim.data, metric = "gower")
+single.hc = hclust(d, method = "single")
+single.tree = convert_to_phylo(single.hc)
+x = setNames(sim.data$Y, row.names(sim.data))
+fitER<-ace(x, single.tree, model="ER", type="discrete")
+cols<-setNames(c("red","blue"),levels(x))
+
+plotTree(single.tree,type="fan",fsize=0.7,ftype="i",lwd=1)
+nodelabels(node=1:single.tree$Nnode+Ntip(single.tree),
+    pie=fitER$lik.anc,piecol=cols,cex=0.4)
+tiplabels(pie=to.matrix(x[single.tree$tip.label],
+    levels(x)),piecol=cols,cex=0.3)
+add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1],
+    y=0.8*par()$usr[3],fsize=0.8)
+```
+
 
