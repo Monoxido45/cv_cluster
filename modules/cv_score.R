@@ -248,6 +248,7 @@ L_score = function(dend, original_data, tol  = 1e-20, seed = 99){
   n = length(original_data[, 1])
   total = p*n
   score.matrix = matrix(0, nrow = n, ncol = p)
+  dend$edge.length[which(dend$edge.length %in% c(0))] = 10^(-3)
   names = row.names(original_data)
   row.names(original_data)  = c(1:nrow(original_data))
   if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
@@ -264,6 +265,9 @@ L_score = function(dend, original_data, tol  = 1e-20, seed = 99){
                            lines
                          }
   stopCluster(cl)
+  if(p == 1){
+    score.matrix = as.matrix(score.matrix)
+  }
   partial_score = colSums(score.matrix)
   score = sum(partial_score)/total
   return(score)
@@ -351,25 +355,123 @@ L_score_4 = function(dend, original_data, tol  = 1e-20, seed = 99){
   return(score)
 }
 
-L_cross_val = function(clust.obj, original_data,tol = 1e-20, seed = 99){
+L_cross_val = function(original_data, cl.method = "all", tol = 1e-20, seed = 99, method = NULL){
   p = ncol(original_data)
-  if (is.list(clust.obj) == T){
-    tops = lapply(clust.obj, FUN = convert_to_phylo)
-    results = matrix(nrow = p, ncol = length(tops))
+  if (cl.method == "all"){
+    results = matrix(nrow = p, ncol = 10)
     for(k in (1:p)){
+      test_data = as.data.frame(original_data[, k])
+      colnames(test_data) = colnames(original_data)[k]
+      rownames(test_data) = rownames(original_data)
       training_data = original_data[, -c(k)]
-      results[k, ] = sapply(tops, FUN = L_score, original_data = training_data)
+      types = sapply(training_data, class)
+      bool =  (types == "integer" | types == "numeric")
+      if (length(bool[bool != T]) == 0){ 
+      d = dist(scale(training_data))
+      hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+                     ward.d2.hc = hclust(d, method = "ward.D2"),
+                     single.hc = hclust(d, method = "single"),
+                     complete.hc = hclust(d, method = "complete"),
+                     ave.hc = hclust(d, method = "average"),
+                     med.hc = hclust(d, method = "median"),
+                     centroid.hc = hclust(d, method = "centroid"),
+                     mcquitty.hc = hclust(d, method = "mcquitty"),
+                     agnes.hc = agnes(d, diss = TRUE),
+                     diana.hc = diana(d, diss = TRUE))
+      tops = lapply(hc.list, convert_to_phylo)
+      results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
+      }else{
+        d = daisy(training_data, metric = "gower")
+        hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+                       ward.d2.hc = hclust(d, method = "ward.D2"),
+                       single.hc = hclust(d, method = "single"),
+                       complete.hc = hclust(d, method = "complete"),
+                       ave.hc = hclust(d, method = "average"),
+                       med.hc = hclust(d, method = "median"),
+                       centroid.hc = hclust(d, method = "centroid"),
+                       mcquitty.hc = hclust(d, method = "mcquitty"),
+                       agnes.hc = agnes(d, diss = T),
+                       diana.hc = diana(d, diss = T))
+        tops = lapply(hc.list, convert_to_phylo)
+        print("a")
+        results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
+      }
     }
   }else{
-    results = numeric(p)
-    top = convert_to_phylo(clust.obj)
+    if(cl.method == "factors"){
+      results = matrix(nrow = p, ncol = 8)
+      for(k in (1:p)){
+        test_data = as.data.frame(original_data[, k])
+        colnames(test_data) = colnames(original_data)[k]
+        rownames(test_data) = rownames(original_data)
+        training_data = original_data[, -c(k)]
+        types = sapply(training_data, class)
+        bool =  (types == "integer" | types == "numeric")
+        if (length(bool[bool != T]) == 0){ 
+          d = dist(scale(training_data))
+          hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+                         ward.d2.hc = hclust(d, method = "ward.D2"),
+                         single.hc = hclust(d, method = "single"),
+                         complete.hc = hclust(d, method = "complete"),
+                         ave.hc = hclust(d, method = "average"),
+                         mcquitty.hc = hclust(d, method = "mcquitty"),
+                         agnes.hc = agnes(d, diss = TRUE),
+                         diana.hc = diana(d, diss = TRUE))
+          tops = lapply(hc.list, convert_to_phylo)
+          results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
+          print(k)
+        }else{
+          d = daisy(training_data, metric = "gower")
+          hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+                         ward.d2.hc = hclust(d, method = "ward.D2"),
+                         single.hc = hclust(d, method = "single"),
+                         complete.hc = hclust(d, method = "complete"),
+                         ave.hc = hclust(d, method = "average"),
+                         mcquitty.hc = hclust(d, method = "mcquitty"),
+                         agnes.hc = agnes(d, diss = T),
+                         diana.hc = diana(d, diss = T))
+          tops = lapply(hc.list, convert_to_phylo)
+          results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
+          print(k)
+        }
+      }
+        }else{
+    results = matrix(nrow = p, ncol = 8)
     for(k in (1:p)){
+      test_data = as.data.frame(original_data[, k])
+      colnames(test_data) = colnames(original_data)[k]
+      rownames(test_data) = rownames(original_data)
       training_data = original_data[, -c(k)]
-      results[k] = L_score(top, traning_data)
-  }
+      types = sapply(training_data, class)
+      bool =  (types == "integer" | types == "numeric")
+      if (length(bool[bool != T]) == 0){ 
+        d = dist(scale(training_data))
+        hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+                       ward.d2.hc = hclust(d, method = "ward.D2"),
+                       single.hc = hclust(d, method = "single"),
+                       complete.hc = hclust(d, method = "complete"),
+                       ave.hc = hclust(d, method = "average"),
+                       med.hc = hclust(d, method = "median"),
+                       centroid.hc = hclust(d, method = "centroid"),
+                       mcquitty.hc = hclust(d, method = "mcquitty"))
+        tops = lapply(hc.list, convert_to_phylo)
+        results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
+      }else{
+        d = daisy(training_data, metric = "gower")
+        hc.list = list(ward.hc = hclust(d, method = "ward.D"),
+                       ward.d2.hc = hclust(d, method = "ward.D2"),
+                       single.hc = hclust(d, method = "single"),
+                       complete.hc = hclust(d, method = "complete"),
+                       ave.hc = hclust(d, method = "average"),
+                       med.hc = hclust(d, method = "median"),
+                       centroid.hc = hclust(d, method = "centroid"),
+                       mcquitty.hc = hclust(d, method = "mcquitty"))
+        tops = lapply(hc.list, convert_to_phylo)
+        results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
+      }
+      }
+    }
   }
   return(results)
 }
-
-
 
