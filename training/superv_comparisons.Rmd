@@ -1,0 +1,182 @@
+---
+title: "Some supervised learning tests for Dendrogram Score"
+output: html_notebook
+---
+```{r global_options}
+```
+Importing needed packages
+```{r message = FALSE}
+library(ape)
+library(dendextend)
+library(cluster)
+library(tibble)
+library(magrittr)
+library(dplyr)
+library(phytools)
+library(mltools)
+library(data.table)
+library(factoextra)
+source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/convert_to_parenthesis.R")
+source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/cv_score.R")
+library(tictoc)
+library(mvMORPH)
+library(dplyr)
+library(tidyr)
+library(RColorBrewer)
+library(MASS)
+library(kableExtra)
+library(plyr)
+```
+First working with a simulated data set:
+```{r}
+set.seed(500)
+n = 170
+p = 3
+
+Y = sample(c(0, 1), n, replace = TRUE, prob = c(0.5, 0.5))
+mu_0 = c(2, 4, 7)
+mu_1 = c(4, 6,  10)
+S_0 = cbind(c(4, 1, 3), c(1, 9, 5), c(4, 5, 12))
+S_1 = cbind(c(10, 5, 8), c(5, 14, 12), c(8, 12, 24))
+
+
+X = matrix(nrow = n, ncol = p)
+X[Y == 0, ] = round(mvrnorm(sum(Y == 0), mu_0, S_0), 4)
+X[Y == 1, ] = round(mvrnorm(sum(Y == 1), mu_1, S_1), 4)
+
+sim.data = as.data.frame(cbind(X , Y))
+sim.data$Y = as.factor(Y)
+colnames(sim.data) = c("X1", "X2","X3", "Y")
+row.names(sim.data) = c(1:nrow(sim.data))
+head(sim.data, 4)
+```
+So lets make some tests:
+```{r}
+lvls = levels(sim.data$Y)
+tam = length(lvls)
+relab_y = mapvalues(sim.data$Y, from = lvls, to = 1:tam)
+relab_y
+new_lvls = levels(relab_y)
+```
+And now testing some hierarchical clustering without the ground truth label:
+```{r}
+test_data = sim.data[, -4]
+head(test_data)
+```
+```{r}
+test.wd_hc = scale(test_data) %>%
+  eclust(FUNcluster = "hclust", hc_method = "ward.D2", hc_metric = "euclidean", k = 2)
+cluster = factor(test.wd_hc$cluster)
+cluster
+```
+```{r}
+test.diana = scale(test_data) %>%
+  diana()
+fit = cutree(test.diana, k = 2)
+fit
+```
+
+
+```{r}
+perms = permutations(n = tam, r = tam,v =  new_lvls)
+perms
+```
+And now, we can obtain all possible combinations of cluster labels:
+```{r}
+hits = numeric(nrow(perms))
+for(i in (1:nrow(perms))){
+  new_clust = mapvalues(cluster, from = levels(cluster), to = perms[i, ])
+  temp_hit = (sum(new_clust == relab_y)/length(relab_y))
+  hits[i] = temp_hit
+}
+hits
+which.max(hits)
+````
+Based on this, we can make a comparison function between a supervised learning prediction score computed into hierarchical clustering with ward.D2 method with our score:
+```{r}
+tic("Time of the supervised comparison")
+comp = supervised_comparing(sim.data, clust = "hclust", clust_method = "ward.D2", test_index = 4)
+comp
+toc()
+```
+Testing the list input for supervised_comparing and cv_score algorithms:
+```{r}
+test.list = list(hclust = c("ward.D", "single","ward.D2", "average", "complete", "mcquitty", "median", "centroid"), agnes = c("weighted", "average", "ward"), diana = NA)
+names(test.list)
+test.list[[3]]
+```
+```{r}
+paste0(names(test.list)[1], test.list[[1]][1])
+```
+Running all supervised comparisons:
+```{r}
+tic("Running time for all_supervised_comparing")
+data.test = all_supervised_comparing(sim.data, clust = test.list, test_index = 4)
+data.test
+toc()
+```
+Graphing the comparisson:
+```{r}
+data.test %>%
+  mutate(names = rownames(data.test)) %>% 
+  ggplot(aes(x = V1, y = V2)) +
+  geom_point(color = "red") +
+  labs(x = "Proportion of hits",
+       y = "Scores") +
+  theme_minimal()
+```
+\
+```{r}
+dists = c("euclidean", "manhattan", "canberra", "minkowski")
+tic("Running time for all_supervised_comparing")
+data.test = all_supervised_comparing(sim.data, clust = test.list, test_index = 4, dist = dists)
+data.test
+toc()
+```
+Graphing the comparison acording to distance:
+```{r echo=TRUE}
+data.test = data.test %>%
+  mutate(V1 = as.numeric(V1),
+         V2 = as.numeric(V2),
+         V3 = as.factor(V3))
+data.test %>%
+  ggplot(aes(x = V1, y = V2, colour = V3)) +
+  geom_point() +
+  labs(x = "Proportion of hits",
+       y = "Scores",
+       colour = "Distances") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+```
+```{r}
+d = dist(sim.data, p = 2)
+d2 = dist(sim.data)
+```
+Testing iris dataset:
+```{r}
+flowers = iris
+tic("Running time for all_supervised_comparing in iris dataset")
+data.test = all_supervised_comparing(flowers, clust = test.list, test_index = 5, dist = dists)
+data.test
+toc()
+```
+And then, graphing it:
+```{r echo = F}
+data.test = data.test %>%
+  mutate(V1 = as.numeric(V1),
+         V2 = as.numeric(V2),
+         V3 = as.factor(V3))
+data.test %>%
+  ggplot(aes(x = V1, y = V2, colour = V3)) +
+  geom_point() +
+  labs(x = "Proportion of hits",
+       y = "Scores",
+       colour = "Distances") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+```
+
+```{r}
+
+```
+

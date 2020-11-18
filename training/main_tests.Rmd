@@ -477,3 +477,4 @@ add.simmap.legend(colors=cols,prompt=FALSE,x=0.9*par()$usr[1],
 ```
 
 
+
