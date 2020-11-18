@@ -6,7 +6,6 @@ library(tibble)
 library(magrittr)
 library(dplyr)
 library(phytools)
-library(limSolve)
 library(mltools)
 library(data.table)
 library(factoextra)
@@ -15,6 +14,8 @@ library(foreach)
 library(doParallel)
 library(tictoc)
 library(mvMORPH)
+library(kmed)
+library(gtools)
 
 # defining one hot encoder for simap
 onehotencoder = function(miss_data){
@@ -251,7 +252,7 @@ L_score = function(dend, original_data, tol  = 1e-20, seed = 99){
   dend$edge.length[which(dend$edge.length %in% c(0))] = 10^(-3)
   names = row.names(original_data)
   row.names(original_data)  = c(1:nrow(original_data))
-  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
+  
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
@@ -282,7 +283,7 @@ L_score_2 = function(dend, original_data, tol  = 1e-20, seed = 99){
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
   row.names(original_data)  = c(1:nrow(original_data))
-  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
+  
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
@@ -309,7 +310,7 @@ L_score_3 = function(dend, original_data, tol  = 1e-20, seed = 99){
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
   row.names(original_data)  = c(1:nrow(original_data))
-  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
+  
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
@@ -336,7 +337,7 @@ L_score_4 = function(dend, original_data, tol  = 1e-20, seed = 99){
   score.matrix = matrix(0, nrow = n, ncol = p)
   names = row.names(original_data)
   row.names(original_data)  = c(1:nrow(original_data))
-  if(is.null(row.names(original_data))) row.names(original_data) = c(1:nrow(original_data))
+  
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
@@ -355,7 +356,9 @@ L_score_4 = function(dend, original_data, tol  = 1e-20, seed = 99){
   return(score)
 }
 
-L_cross_val = function(original_data, cl.method = "all", tol = 1e-20, seed = 99, method = NULL){
+
+
+L_cross_val = function(original_data, cl.method = "all",tol = 1e-20, seed = 99, method = NULL){
   p = ncol(original_data)
   if (cl.method == "all"){
     results = matrix(nrow = p, ncol = 10)
@@ -474,4 +477,103 @@ L_cross_val = function(original_data, cl.method = "all", tol = 1e-20, seed = 99,
   }
   return(results)
 }
+
+
+all_supervised_comparing = function(data, clust_list, test_index, dist = NA, 
+                                    mixed_dists = NA){
+  list.names = names(clust_list)
+  training_data = data[, -test_index]
+  types = sapply(training_data, class)
+  bool = (types == "integer" | types == "numeric")
+  size = 1
+  comp_list = list()
+  if(length(bool[bool != T]) == 0){
+    if(is.na(dist) == F){size = length(dist)
+    mixed_dists = NA
+    dist.names = dist}
+  }else{
+    if(is.na(mixed_dists) == F){size = length(mixed_dists)
+    dist = NA
+    dist.names = mixed_dists}
+  }
+  for(i in (1:length(list.names))){
+    clust.method = list.names[i]
+    all.methods = test.list[[i]]
+    if(is.na(dist) & is.na(mixed_dists)){mat = matrix(nrow = length(all.methods),
+                                                      ncol = 2)}else{
+                                        mat = matrix(nrow = length(all.methods)*size,
+                                                     ncol = 3)
+                                                      }
+    row.names(mat) = numeric(length = size * length(all.methods))
+    for(j in (1:length(all.methods))){
+      if(is.na(dist) & is.na(mixed_dists)){
+        mat[j, ] = supervised_comparing(data, clust.method, all.methods[j], test_index)
+        row.names(mat)[j] = paste0(clust.method,".", all.methods[j])
+      }else{
+        for(k in (1:size)){
+          mat[k + ((j - 1)* size), c(1,2)] = supervised_comparing(data, clust.method, 
+                                          all.methods[j], test_index, dist = dist[k], 
+                                          mixed_dists = mixed_dists[k])
+          mat[k + ((j - 1)* size),3] = dist.names[k]
+          row.names(mat)[k + ((j - 1)* size)] = paste0(clust.method,".", all.methods[j])
+        }
+      }
+    }
+    comp_list[[clust.method]] = mat
+  }
+comp_data.frame = as.data.frame(do.call(rbind, comp_list))
+return(comp_data.frame)
+}
+
+
+supervised_comparing = function(data, clust, clust_method, test_index, dist = NA, 
+                                mixed_dists = NA, p_mink = 3.5){
+  n = nrow(data)
+  p = ncol(data) - 1
+  training_data = data[, - test_index]
+  test_data = data[, test_index]
+  lvls = levels(test_data)
+  nlvls= length(lvls)
+  types = sapply(training_data, class)
+  relab_y = mapvalues(test_data, from = lvls, to = 1:nlvls)
+  new_lvls = levels(relab_y)
+  bool =  (types == "integer" | types == "numeric")
+  if (length(bool[bool != T]) == 0){
+    if(is.na(dist) == TRUE){ d = dist(scale(training_data))}else{
+      d = dist(scale(training_data), method = dist, p = p_mink)}
+  }else{
+    if(is.na(mixed_dists) == T){d = daisy(training_data, metric = "gower")}else{ 
+      d = distmix(training_data, method = mixed_dists)}
+  }
+  if(clust == "hclust"){
+      clust = hclust(d, method = clust_method)
+      clusters = factor(cutree(clust, k =  nlvls))
+    }else{
+      if(clust == "agnes"){
+        clust = agnes(d, diss = T, method = clust_method)
+        clusters = factor(cutree(clust, k = nlvls))
+      }else{
+        clust = diana(d, diss = T)
+        clusters = factor(cutree(clust, k =  nlvls))
+      }
+    }
+  perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
+  hits = numeric(nrow(perms))
+  for(i in (1:nrow(perms))){
+    new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+    temp_hit = (sum(new_clust == relab_y)/length(relab_y))
+    hits[i] = temp_hit
+  }
+  max.index = which.max(hits)
+  maximum_index = hits[max.index]
+  dend = convert_to_phylo(clust)
+  score = L_score(dend, training_data)
+  names = c("Hits proportion", "Score")
+  comparisson = setNames(c(maximum_index, score), names)
+  return(comparisson)
+}
+
+
+
+
 
