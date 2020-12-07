@@ -61,7 +61,9 @@ new_lvls = levels(relab_y)
 And now testing some hierarchical clustering without the ground truth label:
 ```{r}
 test_data = sim.data[, -4]
-head(test_data)
+d = dist(test_data)
+diana1 = diana(d)
+diana2 = diana(d, diss = T)
 ```
 ```{r}
 test.wd_hc = scale(test_data) %>%
@@ -91,7 +93,7 @@ for(i in (1:nrow(perms))){
 }
 hits
 which.max(hits)
-````
+```
 Based on this, we can make a comparison function between a supervised learning prediction score computed into hierarchical clustering with ward.D2 method with our score:
 ```{r}
 tic("Time of the supervised comparison")
@@ -175,8 +177,166 @@ data.test %>%
   scale_colour_brewer(palette = "Set1") +
   theme_minimal()
 ```
-
+\
+For the purpose of checking the correctness of our score function we conduct now a "proof of consent":
+**Proof of consent**
 ```{r}
-
+# generating a non correlated dendrogram:
+set.seed(120)
+n = 170
+X = rexp(n, 12)
+cons.data = data.frame("Test"  = X)
+d = dist(scale(cons.data))
+cons.hc = hclust(d, method = "ward.D2")
+cons.dend = convert_to_phylo(cons.hc)
+cons.score = L_score(cons.dend, sim.data[, -4])
+cons.score
 ```
+\
+Comparing dendrograms:
+```{r}
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "ward.D2")
+fviz_dend(original.hc)
+fviz_dend(cons.hc)
+```
+\
+Testing the code without the variance:
+```{r}
+cons.hc = hclust(d, method = "complete")
+cons.dend = convert_to_phylo(cons.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "complete")
+original.dend = convert_to_phylo(original.hc)
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+\
+Testing other methods:
+```{r}
+cons.hc = hclust(d, method = "average")
+cons.dend = convert_to_phylo(cons.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "average")
+original.dend = convert_to_phylo(original.hc)
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+cons.hc = diana(d, diss = T)
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = diana(dist(scale(sim.data[, -4])), diss = T)
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+cons.hc = hclust(d, method = "mcquitty")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "mcquitty")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+cons.hc = hclust(d, method = "single")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "single")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+cons.hc = hclust(d, method = "centroid")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "centroid")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+cons.hc = hclust(d, method = "ward.D2")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "ward.D2")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+cons.hc = hclust(d, method = "ward.D")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "ward.D")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+cons.hc = hclust(d, method = "median")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4])), method = "median")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+d = dist(scale(cons.data), method = "manhattan")
+cons.hc = hclust(d, method = "mcquitty")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4]), method = "manhattan"), method = "mcquitty")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+d = dist(scale(cons.data), method = "manhattan")
+cons.hc = hclust(d, method = "ward.D2")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4]), method = "manhattan"), method = "ward.D2")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+```{r}
+d = dist(scale(cons.data), method = "manhattan")
+cons.hc = hclust(d, method = "average")
+cons.dend = convert_to_phylo(cons.hc)
+original.hc = hclust(dist(scale(sim.data[, -4]), method = "manhattan"), method = "average")
+original.dend = convert_to_phylo(original.hc)
+score.cons =  L_score(cons.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -4])
+score.cons
+score.original
+```
+Testing new crossval:
+```{r}
+cl.list = list(hclust = c("average", "ward.D2"),
+               agnes = c("average"))
+dists = c("euclidean", "manhattan")
+tic("Computing time for new cross validation")
+L_cross_val(test_data, cl.list, dists = dists)
+toc()
+```
+
+
+
+
 
