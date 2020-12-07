@@ -34,18 +34,6 @@ onehotencoder = function(miss_data){
   return(onehot)
 }
 
-
-continuous.missing = function(dend, miss_data, tol){
-  max.tl = miss_data
-  del.ind = match(NA, max.tl)
-  new_max.tl = max.tl[-del.ind]
-  fit = anc.ML(dend, new_max.tl, model = "BM", tol = tol)
-  y.hat = fit$missing.x
-  y.hat.var = fit$sig2
-  return(list(y.hat, y.hat.var))
-}
-
-
 factorial.missing = function(dend, miss_data, row){
   onehot = onehotencoder(miss_data)
   fit_discrete = make.simmap(as.multiPhylo(dend), onehot, model = "ER",
@@ -57,6 +45,7 @@ factorial.missing = function(dend, miss_data, row){
 }
 
 
+# without variance
 row_computing = function(types, dend, original_data, tol,seed, col){
   n = nrow(original_data)
   lines = numeric(n)
@@ -77,8 +66,7 @@ row_computing = function(types, dend, original_data, tol,seed, col){
       miss_data[i, 1] = NA
       imp = estim(dend, miss_data, fit)
       y.pred = imp$estimates[i, 1]
-      y.pred_var = imp$var[i, 1]
-      mse = ((y.pred - saved_value)^2)/y.pred_var
+      mse = ((y.pred - saved_value)^2)
       lines[i] =  mse
     }
   }else{
@@ -100,146 +88,7 @@ row_computing = function(types, dend, original_data, tol,seed, col){
   return(lines)
 }
 
-row_computing2 = function(types, dend, original_data, tol, seed, col){
-  n = nrow(original_data)
-  lines = numeric(n)
-  row.names(original_data) = c(1:nrow(original_data))
-  j = col
-  cname = colnames(original_data)[j]
-  if (types[j] == "integer" | types[j] == "numeric"){
-    bool = (types == "numeric" | types == "integer")
-    selected_data = as.data.frame(original_data[, bool])
-    row.names(selected_data) = row.names(original_data)
-    colnames(selected_data) = colnames(original_data)[bool]
-    fit = mvBM(dend, selected_data, model = "BMM", echo = T, method = "inverse")
-    current_data = as.matrix(original_data[, j])
-    # not scaling
-    for (i in (1:n)){
-      saved_value = current_data[i]
-      miss_data = selected_data
-      miss_data[i, j] = NA
-      imp = estim(dend, miss_data, fit)
-      print(imp$estimates)
-      print(imp$var)
-      print(saved_value)
-      y.pred = imp$estimates[i, j]
-      y.pred_var = imp$var[i, j]
-      mse = ((y.pred - saved_value)^2)/y.pred_var
-      lines[i] =  mse
-    }
-  }else{
-    current_data = original_data[, j]
-    if (types[j] == "logical") current_data = as.factor(current_data)
-    set.seed(seed)
-    for (i in (1:n)){
-      saved_value = numeric(nlevels(current_data))
-      saved_value[as.numeric(current_data)[i]] = 1
-      miss_data = current_data
-      names(miss_data) = names
-      miss_data[i] = NA
-      results = factorial.missing(dend, miss_data)
-      pi = results[[1]]
-      A.norm = results[[2]]
-      mse = (sum((saved_value - pi)^2))/A.norm
-      lines[i] = mse
-    }
-  }
-  return(lines)
-}
 
-row_computing3 = function(types, dend, original_data, tol, seed, col){
-  n = nrow(original_data)
-  lines = numeric(n)
-  names = c(1:nrow(original_data))
-  j = col
-  cname = colnames(original_data)[j]
-  tree.order = dend$tip.label
-  if (types[j] == "integer" | types[j] == "numeric"){
-    bool = (types == "numeric" | types == "integer")
-    current_data = as.matrix(original_data[, j])
-    # not scaling
-    colnames(current_data) = cname
-    rownames(current_data) = names
-    for (i in (1:n)){
-      saved_value = current_data[i]
-      miss_data = current_data
-      miss_data = as.data.frame(miss_data)
-      colnames(miss_data) = colnames(current_data)
-      rownames(miss_data) = rownames(current_data)
-      miss_data[i, 1] = NA
-      fit = mvBM(dend, miss_data, model = "BMM", method = "inverse")
-      imp = estim(dend, miss_data, fit)
-      y.pred = imp$estimates[i, 1]
-      y.pred_var = imp$var[i ,1]
-      mse = ((y.pred - saved_value)^2)/y.pred_var
-      lines[i] =  mse
-    }
-  }else{
-    current_data = original_data[, j]
-    if (types[j] == "logical") current_data = as.factor(current_data)
-    set.seed(seed)
-    for (i in (1:n)){
-      saved_value = numeric(nlevels(current_data))
-      saved_value[as.numeric(current_data)[i]] = 1
-      miss_data = current_data
-      names(miss_data) = names
-      miss_data[i] = NA
-      results = factorial.missing(dend, miss_data)
-      pi = results[[1]]
-      A.norm = results[[2]]
-      mse = (sum((saved_value - pi)^2))/A.norm
-      lines[i] = mse
-    }
-  }
-  return(lines)
-}
-
-row_computing4 = function(types, dend, original_data, tol, seed, col){
-  n = nrow(original_data)
-  lines = numeric(n)
-  names = c(1:nrow(original_data))
-  j = col
-  cname = colnames(original_data)[j]
-  if (types[j] == "integer" | types[j] == "numeric"){
-    bool = (types == "numeric" | types == "integer")
-    selected_data = as.data.frame(original_data[, bool])
-    colnames(selected_data) = colnames(original_data)[bool]
-    row.names(selected_data) = names
-    current_data = as.matrix(original_data[, j])
-    # not scaling
-    for (i in (1:n)){
-      saved_value = current_data[i]
-      miss_data = selected_data
-      miss_data[i, j] = NA
-      fit = mvBM(dend, miss_data, model = "BMM", echo = T, method = "inverse")
-      imp = estim(dend, miss_data, fit)
-      print(imp$estimates)
-      print(imp$var)
-      print(saved_value)
-      y.pred = imp$estimates[i, j]
-      y.pred_var = imp$var[i, j]
-      mse = ((y.pred - saved_value)^2)/y.pred_var
-      lines[i] =  mse
-    }
-  }else{
-    current_data = original_data[, j]
-    if (types[j] == "logical") current_data = as.factor(current_data)
-    set.seed(seed)
-    for (i in (1:n)){
-      saved_value = numeric(nlevels(current_data))
-      saved_value[as.numeric(current_data)[i]] = 1
-      miss_data = current_data
-      names(miss_data) = names
-      miss_data[i] = NA
-      results = factorial.missing(dend, miss_data)
-      pi = results[[1]]
-      A.norm = results[[2]]
-      mse = (sum((saved_value - pi)^2))/A.norm
-      lines[i] = mse
-    }
-  }
-  return(lines)
-}
 
 
 # using mvMORPH
@@ -256,7 +105,7 @@ L_score = function(dend, original_data, tol  = 1e-20, seed = 99){
   # paralellizing
   cores = detectCores()
   cl = makeCluster(cores[1] - 1)
-  clusterExport(cl, c("row_computing", "factorial.missing", "continuous.missing",
+  clusterExport(cl, c("row_computing", "factorial.missing",
                       "onehotencoder"))
   registerDoParallel(cl)
   score.matrix = foreach(j = 1:p, .combine = cbind,
@@ -275,208 +124,150 @@ L_score = function(dend, original_data, tol  = 1e-20, seed = 99){
 }
 
 
-L_score_2 = function(dend, original_data, tol  = 1e-20, seed = 99){
-  types = sapply(original_data, class)
-  p = length(original_data[1, ])
-  n = length(original_data[, 1])
-  total = p*n
-  score.matrix = matrix(0, nrow = n, ncol = p)
-  names = row.names(original_data)
-  row.names(original_data)  = c(1:nrow(original_data))
-  
-  # paralellizing
-  cores = detectCores()
-  cl = makeCluster(cores[1] - 1)
-  clusterExport(cl, c("row_computing2", "factorial.missing", "continuous.missing",
-                      "onehotencoder"))
-  registerDoParallel(cl)
-  score.matrix = foreach(j = 1:p, .combine = cbind,
-                         .export = c("row_computing2", "factorial.missing","onehotencoder"),
-                         .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing2(types, dend, original_data, tol, seed, j)
-                           lines
-                         }
-  stopCluster(cl)
-  partial_score = colSums(score.matrix)
-  score = sum(partial_score)/total
-  return(score)
-}
-
-L_score_3 = function(dend, original_data, tol  = 1e-20, seed = 99){
-  types = sapply(original_data, class)
-  p = length(original_data[1, ])
-  n = length(original_data[, 1])
-  total = p*n
-  score.matrix = matrix(0, nrow = n, ncol = p)
-  names = row.names(original_data)
-  row.names(original_data)  = c(1:nrow(original_data))
-  
-  # paralellizing
-  cores = detectCores()
-  cl = makeCluster(cores[1] - 1)
-  clusterExport(cl, c("row_computing", "factorial.missing", "continuous.missing",
-                      "onehotencoder"))
-  registerDoParallel(cl)
-  score.matrix = foreach(j = 1:p, .combine = cbind,
-                         .export = c("row_computing3", "factorial.missing","onehotencoder"),
-                         .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing3(types, dend, original_data, tol, seed, j)
-                           lines
-                         }
-  stopCluster(cl)
-  partial_score = colSums(score.matrix)
-  score = sum(partial_score)/total
-  return(score)
-}
-
-L_score_4 = function(dend, original_data, tol  = 1e-20, seed = 99){
-  types = sapply(original_data, class)
-  p = length(original_data[1, ])
-  n = length(original_data[, 1])
-  total = p*n
-  score.matrix = matrix(0, nrow = n, ncol = p)
-  names = row.names(original_data)
-  row.names(original_data)  = c(1:nrow(original_data))
-  
-  # paralellizing
-  cores = detectCores()
-  cl = makeCluster(cores[1] - 1)
-  clusterExport(cl, c("row_computing", "factorial.missing", "continuous.missing",
-                      "onehotencoder"))
-  registerDoParallel(cl)
-  score.matrix = foreach(j = 1:p, .combine = cbind,
-                         .export = c("row_computing4", "factorial.missing","onehotencoder"),
-                         .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing4(types, dend, original_data, tol, seed, j)
-                           lines
-                         }
-  stopCluster(cl)
-  partial_score = colSums(score.matrix)
-  score = sum(partial_score)/total
-  return(score)
-}
 
 
-
-L_cross_val = function(original_data, cl.method = "all",tol = 1e-20, seed = 99, method = NULL){
+L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol = 1e-20, seed = 99){
+  list.names = names(cl.list)
   p = ncol(original_data)
-  if (cl.method == "all"){
-    results = matrix(nrow = p, ncol = 10)
-    for(k in (1:p)){
-      test_data = as.data.frame(original_data[, k])
-      colnames(test_data) = colnames(original_data)[k]
-      rownames(test_data) = rownames(original_data)
-      training_data = original_data[, -c(k)]
-      types = sapply(training_data, class)
-      bool =  (types == "integer" | types == "numeric")
-      if (length(bool[bool != T]) == 0){ 
-      d = dist(scale(training_data))
-      hc.list = list(ward.hc = hclust(d, method = "ward.D"),
-                     ward.d2.hc = hclust(d, method = "ward.D2"),
-                     single.hc = hclust(d, method = "single"),
-                     complete.hc = hclust(d, method = "complete"),
-                     ave.hc = hclust(d, method = "average"),
-                     med.hc = hclust(d, method = "median"),
-                     centroid.hc = hclust(d, method = "centroid"),
-                     mcquitty.hc = hclust(d, method = "mcquitty"),
-                     agnes.hc = agnes(d, diss = TRUE),
-                     diana.hc = diana(d, diss = TRUE))
-      tops = lapply(hc.list, convert_to_phylo)
-      results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
-      }else{
-        d = daisy(training_data, metric = "gower")
-        hc.list = list(ward.hc = hclust(d, method = "ward.D"),
-                       ward.d2.hc = hclust(d, method = "ward.D2"),
-                       single.hc = hclust(d, method = "single"),
-                       complete.hc = hclust(d, method = "complete"),
-                       ave.hc = hclust(d, method = "average"),
-                       med.hc = hclust(d, method = "median"),
-                       centroid.hc = hclust(d, method = "centroid"),
-                       mcquitty.hc = hclust(d, method = "mcquitty"),
-                       agnes.hc = agnes(d, diss = T),
-                       diana.hc = diana(d, diss = T))
-        tops = lapply(hc.list, convert_to_phylo)
-        print("a")
-        results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
-      }
+  l = length(list.names)
+  all_results = list()
+  dists.names = numeric(0)
+  
+  types = sapply(original_data, class)
+  bool =  (types == "integer" | types == "numeric")
+  if(length(bool[bool != T]) == 0){
+    if(is.na(dists) == T | length(dists) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = dists
     }
   }else{
-    if(cl.method == "factors"){
-      results = matrix(nrow = p, ncol = 8)
-      for(k in (1:p)){
-        test_data = as.data.frame(original_data[, k])
-        colnames(test_data) = colnames(original_data)[k]
-        rownames(test_data) = rownames(original_data)
-        training_data = original_data[, -c(k)]
-        types = sapply(training_data, class)
-        bool =  (types == "integer" | types == "numeric")
-        if (length(bool[bool != T]) == 0){ 
-          d = dist(scale(training_data))
-          hc.list = list(ward.hc = hclust(d, method = "ward.D"),
-                         ward.d2.hc = hclust(d, method = "ward.D2"),
-                         single.hc = hclust(d, method = "single"),
-                         complete.hc = hclust(d, method = "complete"),
-                         ave.hc = hclust(d, method = "average"),
-                         mcquitty.hc = hclust(d, method = "mcquitty"),
-                         agnes.hc = agnes(d, diss = TRUE),
-                         diana.hc = diana(d, diss = TRUE))
-          tops = lapply(hc.list, convert_to_phylo)
-          results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
-          print(k)
-        }else{
-          d = daisy(training_data, metric = "gower")
-          hc.list = list(ward.hc = hclust(d, method = "ward.D"),
-                         ward.d2.hc = hclust(d, method = "ward.D2"),
-                         single.hc = hclust(d, method = "single"),
-                         complete.hc = hclust(d, method = "complete"),
-                         ave.hc = hclust(d, method = "average"),
-                         mcquitty.hc = hclust(d, method = "mcquitty"),
-                         agnes.hc = agnes(d, diss = T),
-                         diana.hc = diana(d, diss = T))
-          tops = lapply(hc.list, convert_to_phylo)
-          results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
-          print(k)
-        }
-      }
-        }else{
-    results = matrix(nrow = p, ncol = 8)
-    for(k in (1:p)){
-      test_data = as.data.frame(original_data[, k])
-      colnames(test_data) = colnames(original_data)[k]
-      rownames(test_data) = rownames(original_data)
-      training_data = original_data[, -c(k)]
-      types = sapply(training_data, class)
-      bool =  (types == "integer" | types == "numeric")
-      if (length(bool[bool != T]) == 0){ 
-        d = dist(scale(training_data))
-        hc.list = list(ward.hc = hclust(d, method = "ward.D"),
-                       ward.d2.hc = hclust(d, method = "ward.D2"),
-                       single.hc = hclust(d, method = "single"),
-                       complete.hc = hclust(d, method = "complete"),
-                       ave.hc = hclust(d, method = "average"),
-                       med.hc = hclust(d, method = "median"),
-                       centroid.hc = hclust(d, method = "centroid"),
-                       mcquitty.hc = hclust(d, method = "mcquitty"))
-        tops = lapply(hc.list, convert_to_phylo)
-        results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
-      }else{
-        d = daisy(training_data, metric = "gower")
-        hc.list = list(ward.hc = hclust(d, method = "ward.D"),
-                       ward.d2.hc = hclust(d, method = "ward.D2"),
-                       single.hc = hclust(d, method = "single"),
-                       complete.hc = hclust(d, method = "complete"),
-                       ave.hc = hclust(d, method = "average"),
-                       med.hc = hclust(d, method = "median"),
-                       centroid.hc = hclust(d, method = "centroid"),
-                       mcquitty.hc = hclust(d, method = "mcquitty"))
-        tops = lapply(hc.list, convert_to_phylo)
-        results[k, ] = sapply(tops, FUN = L_score, original_data = test_data)
-      }
-      }
+    if(is.na(mixed_dist) == T | length(mixed_dist) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = mixed_dist
     }
   }
-  return(results)
-}
+  
+  for(k in (1:l)){
+    hc.func = list.names[k]
+    methods = cl.list[[hc.func]]
+    m = length(methods)
+    if(no_dists == T){
+        if(m > 0){
+        for(c in (1:m)){
+          results = numeric(p)
+          for(j in 1:p){
+          test_data = as.data.frame(original_data[, j])
+          colnames(test_data) = colnames(original_data)[j]
+          rownames(test_data) = rownames(original_data)
+          training_data = original_data[, -j]
+          types = sapply(training_data, class)
+          bool =  (types == "integer" | types == "numeric")
+          
+          # testando condições para ver se as variáveis sao mistas ou nao
+          if(length(bool[bool != T]) == 0){
+            if((is.na(dists) == F) & (length(dists) == 1)){
+              d = dist(scale(training_data), method = dists)
+            }else{
+              d = dist(scale(training_data))
+            }
+          }else{
+            if((is.na(mixed_dist) == F) & (length(mixed_dist) == 1)){
+              d = distmix(scale(training_data), method = mixed_dist)
+            }else{
+              d = distmix(scale(training_data))
+            }
+          }
+          
+          clust = get(hc.func)(d, method = methods[c])
+          tree = convert_to_phylo(clust)
+          results[j] = L_score(tree, test_data)
+          }
+          all_results[[paste0(hc.func, ".", methods[c])]] = results
+        }}else{
+          for(j in 1:p){
+          test_data = as.data.frame(original_data[, j])
+          colnames(test_data) = colnames(original_data)[j]
+          rownames(test_data) = rownames(original_data)
+          training_data = original_data[, -j]
+          types = sapply(training_data, class)
+          bool =  (types == "integer" | types == "numeric")
+          
+          
+          # testando condições para ver se as variáveis sao mistas ou nao
+          if(length(bool[bool != T]) == 0){
+            if((is.na(dists) == F) & (length(dists) == 1)){
+              d = dist(scale(training_data), method = dists)
+            }else{
+              d = dist(scale(training_data))
+            }
+          }else{
+            if(length(mixed_dist) == 1){
+              d = distmix(scale(training_data), method = mixed_dist)
+            }else{
+              d = distmix(scale(training_data))
+            }
+          }
+          
+          clust = get(hc.func)(d)
+          tree = convert_to_phylo(clust)
+          results[j] = L_score(tree, test_data)
+          }
+          all_results[[hc.func]] = results
+          }
+    }else{
+      if(length(bool[bool != T]) == 0){
+        func = "dist"
+      }else{
+        func = "distmix"
+      }
+      dists.length = length(used.dists)
+      for(h in 1:dists.length){
+      if(m > 0){
+        for(c in (1:m)){
+          results = numeric(p)
+          for(j in 1:p){
+            test_data = as.data.frame(original_data[, j])
+            colnames(test_data) = colnames(original_data)[j]
+            rownames(test_data) = rownames(original_data)
+            training_data = original_data[, -j]
+            d = get(func)(training_data, method = used.dists[h])
+            clust = get(hc.func)(d, method = methods[c])
+            tree = convert_to_phylo(clust)
+            results[j] = L_score(tree, test_data)
+          }
+          all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = results
+        }}else{
+          for(j in 1:p){
+            test_data = as.data.frame(original_data[, j])
+            colnames(test_data) = colnames(original_data)[j]
+            rownames(test_data) = rownames(original_data)
+            training_data = original_data[, -j]
+            clust = get(hc.func)(d)
+            tree = convert_to_phylo(clust)
+            results[j] = L_score(tree, test_data)
+          }
+          all_results[[paste0(hc.func, ".", used.dists[h])]] = results
+        }
+      dists.names = c(dists.names, rep(used.dists[h], m))
+    }
+      }
+  }
+  if(length(dists.names) >0){
+  all_cvs = do.call(rbind, all_results)
+  all_cvs = as.matrix(rowSums(all_cvs))
+  cvs_data.frame = as.data.frame(all_cvs)
+  cvs_data.frame$dist_names = dists.names
+  return(cvs_data.frame)
+  }else{
+    all_cvs = do.call(rbind, all_results)
+    all_cvs = as.matrix(rowSums(all_cvs))
+    return(all_cvs)
+    }
+  }
 
 
 all_supervised_comparing = function(data, clust_list, test_index, dist = NA, 
@@ -572,7 +363,6 @@ supervised_comparing = function(data, clust, clust_method, test_index, dist = NA
   comparisson = setNames(c(maximum_index, score), names)
   return(comparisson)
 }
-
 
 
 
