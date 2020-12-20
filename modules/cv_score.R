@@ -226,6 +226,7 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
       }
       dists.length = length(used.dists)
       for(h in 1:dists.length){
+        count = 0
       if(m > 0){
         for(c in (1:m)){
           results = numeric(p)
@@ -241,6 +242,7 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
           }
           all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = results
         }}else{
+          count = count + 1
           for(j in 1:p){
             test_data = as.data.frame(original_data[, j])
             colnames(test_data) = colnames(original_data)[j]
@@ -252,11 +254,11 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
           }
           all_results[[paste0(hc.func, ".", used.dists[h])]] = results
         }
-      dists.names = c(dists.names, rep(used.dists[h], m))
+      dists.names = c(dists.names, rep(used.dists[h], m + count))
     }
       }
   }
-  if(length(dists.names) >0){
+  if(length(dists.names) > 0){
   all_cvs = do.call(rbind, all_results)
   all_cvs = as.matrix(rowSums(all_cvs))
   cvs_data.frame = as.data.frame(all_cvs)
@@ -364,6 +366,147 @@ supervised_comparing = function(data, clust, clust_method, test_index, dist = NA
   return(comparisson)
 }
 
-
+supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists = NA, mixed_dist = NA,
+                                            tol = 1e-20){
+  list.names = names(clust_list)
+  training_data = data[, -test_index]
+  test_data = data[, test_index]
+  lvls = levels(test_data)
+  nlvls= length(lvls)
+  types = sapply(training_data, class)
+  bool = (types == "integer" | types == "numeric")
+  relab_y = mapvalues(test_data, from = lvls, to = 1:nlvls)
+  new_lvls = levels(relab_y)
+  cross_val_results = L_cross_val(training_data, clust_list, dists = dists, mixed_dist = mixed_dist, 
+              tol = tol, seed = 99)
+  all_hits = numeric(0)
+  if(length(bool[bool != T]) == 0){
+    if(is.na(dists) == T | length(dists) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = dists
+    }
+  }else{
+    if(is.na(mixed_dist) == T | length(mixed_dist) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = mixed_dist
+    }
+  }
+  for(k in 1:length(list.names)){
+    hc.func = list.names[k]
+    methods = clust_list[[hc.func]]
+    m = length(methods)
+    if(no_dists == T){
+      if(m > 0){
+        for(c in (1:m)){
+            types = sapply(training_data, class)
+            bool =  (types == "integer" | types == "numeric")
+            
+            # testando condições para ver se as variáveis sao mistas ou nao
+            if(length(bool[bool != T]) == 0){
+              if((is.na(dists) == F) & (length(dists) == 1)){
+                d = dist(scale(training_data), method = dists)
+              }else{
+                d = dist(scale(training_data))
+              }
+            }else{
+              if((is.na(mixed_dist) == F) & (length(mixed_dist) == 1)){
+                d = distmix(scale(training_data), method = mixed_dist)
+              }else{
+                d = distmix(scale(training_data))
+              }
+            }
+            
+            clust = get(hc.func)(d, method = methods[c])
+            clusters = factor(cutree(clust, k = nlvls))
+            results[j] = L_score(tree, test_data)
+            perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
+            hits = numeric(nrow(perms))
+            for(i in (1:nrow(perms))){
+              new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+              temp_hit = (sum(new_clust == relab_y)/length(relab_y))
+              hits[i] = temp_hit
+            }
+            max.index = which.max(hits)
+            maximum_index = hits[max.index]
+            all_hits = c(all_hits, maximum_index)
+        }
+        }else{
+          # testando condições para ver se as variáveis sao mistas ou nao
+          if(length(bool[bool != T]) == 0){
+            if((is.na(dists) == F) & (length(dists) == 1)){
+              d = dist(scale(training_data), method = dists)
+            }else{
+              d = dist(scale(training_data))
+            }
+          }else{
+            if(length(mixed_dist) == 1){
+              d = distmix(scale(training_data), method = mixed_dist)
+            }else{
+              d = distmix(scale(training_data))
+            }
+          }
+          clust = get(hc.func)(d)
+          clusters = factor(cutree(clust, k = nlvls))
+          results[j] = L_score(tree, test_data)
+          perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
+          hits = numeric(nrow(perms))
+          for(i in (1:nrow(perms))){
+            new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+            temp_hit = (sum(new_clust == relab_y)/length(relab_y))
+            hits[i] = temp_hit
+          }
+          max.index = which.max(hits)
+          maximum_index = hits[max.index]
+          all_hits = c(all_hits, maximum_index)
+        }
+    }else{
+      if(length(bool[bool != T]) == 0){
+        func = "dist"
+      }else{
+        func = "distmix"
+      }
+      dists.length = length(used.dists)
+      for(h in 1:dists.length){
+        if(m > 0){
+          for(c in (1:m)){
+              d = get(func)(training_data, method = used.dists[h])
+              clust = get(hc.func)(d, method = methods[c])
+              clusters = factor(cutree(clust, k = nlvls))
+              perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
+              hits = numeric(nrow(perms))
+              for(i in (1:nrow(perms))){
+                new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+                temp_hit = (sum(new_clust == relab_y)/length(relab_y))
+                hits[i] = temp_hit
+              }
+              max.index = which.max(hits)
+              maximum_index = hits[max.index]
+              all_hits = c(all_hits, maximum_index)
+            }
+          }else{
+              d = get(func)(training_data, method = used.dists[h])
+              clust = get(hc.func)(d)
+              clusters = factor(cutree(clust, k = nlvls))
+              perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
+              hits = numeric(nrow(perms))
+              for(i in (1:nrow(perms))){
+                new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+                temp_hit = (sum(new_clust == relab_y)/length(relab_y))
+                hits[i] = temp_hit
+              }
+              max.index = which.max(hits)
+              maximum_index = hits[max.index]
+              all_hits = c(all_hits, maximum_index)
+            }
+          }
+  }
+  }
+  cross_val_results$hits = all_hits
+  return(cross_val_results)
+}
 
 
