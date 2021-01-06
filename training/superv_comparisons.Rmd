@@ -196,144 +196,356 @@ cons.score
 Comparing dendrograms:
 ```{r}
 original.hc = hclust(dist(scale(sim.data[, -4])), method = "ward.D2")
-fviz_dend(original.hc)
+fviz_dend(original.hc, k = 2)
 fviz_dend(cons.hc)
 ```
 \
+
+```{r}
+set.seed(500)
+n = 170
+p = 2
+
+Y = sample(c(0, 1), n, replace = TRUE, prob = c(0.5, 0.5))
+mu_0 = c(0, 0)
+mu_1 = c(2, 2)
+S = diag(nrow = 2, ncol = 2)
+
+
+X = matrix(nrow = n, ncol = p)
+X[Y == 0, ] = round(mvrnorm(sum(Y == 0), mu_0, S), 4)
+X[Y == 1, ] = round(mvrnorm(sum(Y == 1), mu_1, S), 4)
+
+sim.data = as.data.frame(cbind(X , Y))
+sim.data$Y = as.factor(Y)
+colnames(sim.data) = c("X1", "X2", "Y")
+row.names(sim.data) = c(1:nrow(sim.data))
+head(sim.data, 4)
+
+X_3 = data.frame(X3 = rexp(n, 1))
+d = dist(scale(X_3))
+```
+Gráfico verdadeiro:
+```{r}
+a = sim.data %>%
+  ggplot(aes(x = X1, y = X2, colour = Y)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Real value of Y") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+print(a)
+```
+
+
 Testing the code without the variance:
 ```{r}
 cons.hc = hclust(d, method = "complete")
 cons.dend = convert_to_phylo(cons.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "complete")
+score.cons =  L_score(cons.dend, sim.data[, -3])
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "complete")
 original.dend = convert_to_phylo(original.hc)
-score.original = L_score(original.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
-\
+```{r}
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+a = temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+b = fviz_dend(original.hc, k = 2)
+g = ggarrange(b, a, ncol =2)
+plot(g)
+```
 Testing other methods:
 ```{r}
 cons.hc = hclust(d, method = "average")
 cons.dend = convert_to_phylo(cons.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "average")
+score.cons =  L_score(cons.dend, sim.data[, -3])
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "average")
 original.dend = convert_to_phylo(original.hc)
-score.original = L_score(original.dend, sim.data[, -4])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
 ```{r}
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+```
+```{r}
 cons.hc = diana(d, diss = T)
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = diana(dist(scale(sim.data[, -4])), diss = T)
+original.hc = diana(dist(scale(sim.data[, -3])), diss = T)
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
 ```{r}
 cons.hc = hclust(d, method = "mcquitty")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "mcquitty")
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "mcquitty")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
 ```{r}
 cons.hc = hclust(d, method = "single")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "single")
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "single")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
 ```{r}
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+```
+
+```{r}
 cons.hc = hclust(d, method = "centroid")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "centroid")
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "centroid")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
+```
+```{r}
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
 ```
 ```{r}
 cons.hc = hclust(d, method = "ward.D2")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "ward.D2")
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "ward.D2")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
+```
+```{r}
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "ward.D2")
+original.dend = convert_to_phylo(original.hc)
+plot(original.dend)
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "ward.D")
+original.dend = convert_to_phylo(original.hc)
+plot(original.dend)
+cons.hc = hclust(d, method = "ward.D")
+cons.dend = convert_to_phylo(cons.hc)
+plot(cons.dend)
+```
+
+```{r}
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
 ```
 ```{r}
 cons.hc = hclust(d, method = "ward.D")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "ward.D")
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "ward.D")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
+```
+
+```{r}
+
+```
+```{r}
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
 ```
 ```{r}
 cons.hc = hclust(d, method = "median")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4])), method = "median")
+original.hc = hclust(dist(scale(sim.data[, -3])), method = "median")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
 ```{r}
-d = dist(scale(cons.data), method = "manhattan")
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+```
+```{r}
+d = dist(scale(X_3), method = "manhattan")
 cons.hc = hclust(d, method = "mcquitty")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4]), method = "manhattan"), method = "mcquitty")
+original.hc = hclust(dist(scale(sim.data[, -3]), method = "manhattan"), method = "mcquitty")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
 ```{r}
-d = dist(scale(cons.data), method = "manhattan")
+d = dist(scale(X_3), method = "manhattan")
 cons.hc = hclust(d, method = "ward.D2")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4]), method = "manhattan"), method = "ward.D2")
+original.hc = hclust(dist(scale(sim.data[, -3]), method = "manhattan"), method = "ward.D2")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
 ```{r}
-d = dist(scale(cons.data), method = "manhattan")
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+```
+```{r}
+d = dist(scale(X_3), method = "manhattan")
 cons.hc = hclust(d, method = "average")
 cons.dend = convert_to_phylo(cons.hc)
-original.hc = hclust(dist(scale(sim.data[, -4]), method = "manhattan"), method = "average")
+original.hc = hclust(dist(scale(sim.data[, -3]), method = "manhattan"), method = "average")
 original.dend = convert_to_phylo(original.hc)
-score.cons =  L_score(cons.dend, sim.data[, -4])
-score.original = L_score(original.dend, sim.data[, -4])
+score.cons =  L_score(cons.dend, sim.data[, -3])
+score.original = L_score(original.dend, sim.data[, -3])
 score.cons
 score.original
 ```
+```{r}
+factors = factor(cutree(original.hc, k = 2))
+temp_data = sim.data[, -3]
+temp_data$labels = factors
+
+temp_data %>%
+  ggplot(aes(x = X1, y = X2, colour = labels)) +
+  geom_point() +
+  labs(x = "X1",
+       y = "X2",
+       colour = "Labels") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()
+```
+\
 Testing new crossval:
 ```{r}
+test_data = sim.data[, -4]
 cl.list = list(hclust = c("average", "ward.D2"),
                agnes = c("average"))
 dists = c("euclidean", "manhattan")
 tic("Computing time for new cross validation")
 L_cross_val(test_data, cl.list, dists = dists)
 toc()
+```
+Testing supervisioned comparisson for cross validation score
+```{r}
+cl.list = list(hclust = c("single","ward.D2", "mcquitty", "average", "centroid", "complete",
+                          "ward.D"), 
+               agnes = c("weighted", "average"), diana = NULL)
+dists = c("euclidean", "manhattan", "canberra", "maximum")
+tic("Running time for all_supervised_comparing")
+data.test = supervised_comparing_L_cross_val(sim.data, cl.list, test_index = 4, 
+                                             dists = dists)
+data.test
+toc()
+```
+```{r}
+data.test = data.test %>%
+  mutate(V1 = as.numeric(V1),
+         V3 = as.factor(dist_names))
+data.test %>%
+  ggplot(aes(x = V1, y = hits, colour = V3)) +
+  geom_point() +
+  labs(x = "Scores",
+       y = "Proportion of hits",
+       colour = "Distances") +
+  scale_colour_brewer(palette = "Set1") +
+  theme_minimal()+
+  coord_flip()
 ```
 
 

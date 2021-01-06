@@ -25,6 +25,8 @@ library(MASS)
 library(ggplot2)
 library(ggthemes)
 library(ggpubr)
+library(gridBase)
+library(grid)
 ```
 Here we have the interest of comparing the scatterplot, dendrogram and score of each hierarchical clustering method in order to do a proof of consent regarding our score, i.e., verify that our score makes sense in hierarchical clustering context. For that, me simulate the data with $n = 100$ sample points:
 ```{r}
@@ -259,10 +261,235 @@ test.list = list(hclust = c("ward.D", "single","ward.D2", "average", "complete",
 ```{r warning = F, results = 'hide'}
 plot_all_scores(sim.data, X_3, test.list, dists)
 ```
+\
+Another interesting test to do is plot the dendrogram with the real labels than the chosen clusters and compare it to the same scatterplot. For that, we have the following example:
+```{r}
+par(mfrow = c(1, 2), mar = c(2, 1.5, 2, 2))
+hc.func = hclust(dist(scale(sim.data[, -3])), method = "ward.D2")
+dend = as.dendrogram(hc.func)
+phylo = convert_to_phylo(hc.func)
+order = as.numeric(phylo$tip.label)
+labels = sim.data$Y[order]
+colors = ifelse(labels == 1, "red", "blue")
+dend2 = assign_values_to_leaves_edgePar(dend = dend, value = colors, edgePar = "col")
+labels = cutree(hc.func, k = 2)
+temp_data = sim.data[, -3]
+temp_data$labels = factor(labels)
+# plotando
+plot(dend2)
+plot(sim.data$X1, sim.data$X2, col = temp_data$labels, main = "Test title")
+```
+\
+Generalizing that for the above list of clustering methods:
+```{r warning = F, results = 'hide'}
+plot_all_scores_2 = function(original.data, cons.data, cl.list, dists = NA){
+  list.names = names(cl.list)
+  l = length(list.names)
+  par(mfrow = c(1, 2), mar = c(2, 1.5, 2, 2))
+  for(k in 1:l){
+    hc.func = list.names[k]
+    methods = cl.list[[hc.func]]
+    m = length(methods)
+    if(is.na(dists)){
+      if(m > 0){
+      for(c in 1:m){
+        # determining values of interest
+        # cons
+        cons.hc = get(hc.func)(dist(scale(cons.data)), method = methods[c])
+        cons.dend = as.dendrogram(cons.hc)
+        cons.phylo = convert_to_phylo(cons.hc)
+        score.cons =  L_score(cons.phylo, original.data[, -3])
+        order = as.numeric(cons.phylo$tip.label)
+        cons.labels = original.data$Y[order]
+        colors = ifelse(cons.labels == 1, "red", "blue")
+        cons.dend2 = assign_values_to_leaves_edgePar(dend = cons.dend, value = 
+                                                  colors, edgePar = "col")
+        
+        # original
+        original.hc = get(hc.func)(dist(scale(original.data[, -3])), method = methods[c])
+        original.dend = as.dendrogram(original.hc)
+        original.phylo = convert_to_phylo(original.hc)
+        score.original = L_score(original.phylo, original.data[, -3])
+        order = as.numeric(original.phylo$tip.label)
+        original.labels = original.data$Y[order]
+        colors = ifelse(original.labels == 1, "red", "blue")
+        original.dend2 = assign_values_to_leaves_edgePar(dend = original.dend, value = 
+                                                  colors, edgePar = "col")
+        
+        
+        # plotting for original
+        plot(original.dend2)
+        factors = factor(cutree(original.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main = paste0(hc.func,".", methods[c], 
+                      "original data \n score: ", round(score.original, 4)))
+        
+        # plotting for fake
+        plot(cons.dend2)
+        factors = factor(cutree(cons.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main = paste0(hc.func,".", methods[c],
+                          "wrong data  \n score: ", round(score.cons, 4)))
+        
+      }
+      }else{
+        
+        # determining values of interest
+        # cons
+        cons.hc = get(hc.func)(dist(scale(cons.data)))
+        cons.dend = as.dendrogram(cons.hc)
+        cons.phylo = convert_to_phylo(cons.hc)
+        score.cons =  L_score(cons.phylo, original.data[, -3])
+        order = as.numeric(cons.phylo$tip.label)
+        cons.labels = original.data$Y[order]
+        colors = ifelse(cons.labels == 1, "red", "blue")
+        cons.dend2 = assign_values_to_leaves_edgePar(dend = cons.dend, value = 
+                                                  colors, edgePar = "col")
+        
+        # original
+        original.hc = get(hc.func)(dist(scale(original.data[, -3])))
+        original.dend = as.dendrogram(original.hc)
+        original.phylo = convert_to_phylo(original.hc)
+        score.original = L_score(original.phylo, original.data[, -3])
+        order = as.numeric(original.phylo$tip.label)
+        original.labels = original.data$Y[order]
+        colors = ifelse(original.labels == 1, "red", "blue")
+        original.dend2 = assign_values_to_leaves_edgePar(dend = original.dend, value = 
+                                                  colors, edgePar = "col")
+        
+        
+        # plotting for original
+        plot(original.dend2)
+        factors = factor(cutree(original.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main = paste0(hc.func,
+                              " original data \n score: ", round(score.original, 4)))
+        
+        # plotting for fake
+        plot(cons.dend2)
+        factors = factor(cutree(cons.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main = paste0(hc.func,
+                              " wrong data \n score: ", round(score.cons, 4)))
+        
+      }
+    }else{
+        dists.length = length(dists)
+        for(h in 1:dists.length){
+        if(m > 0){
+        for(c in (1:m)){
+        # determining values of interest
+        # cons
+        cons.hc = get(hc.func)(dist(scale(cons.data), method = dists[h]), method = methods[c])
+        cons.dend = as.dendrogram(cons.hc)
+        cons.phylo = convert_to_phylo(cons.hc)
+        score.cons =  L_score(cons.phylo, original.data[, -3])
+        order = as.numeric(cons.phylo$tip.label)
+        cons.labels = original.data$Y[order]
+        colors = ifelse(cons.labels == 1, "red", "blue")
+        cons.dend2 = assign_values_to_leaves_edgePar(dend = cons.dend, value = 
+                                                  colors, edgePar = "col")
+        
+        # original
+        original.hc = get(hc.func)(dist(scale(original.data[, -3]), method = dists[h]), 
+                                        method = methods[c])
+        original.dend = as.dendrogram(original.hc)
+        original.phylo = convert_to_phylo(original.hc)
+        score.original = L_score(original.phylo, original.data[, -3])
+        order = as.numeric(original.phylo$tip.label)
+        original.labels = original.data$Y[order]
+        colors = ifelse(original.labels == 1, "red", "blue")
+        original.dend2 = assign_values_to_leaves_edgePar(dend = original.dend, value = 
+                                                  colors, edgePar = "col")
+        
+        # plotting for original
+        plot(original.dend2)
+        factors = factor(cutree(original.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main = paste0(hc.func,".", methods[c],
+                            " original data with \n",dists[h]," distance score: ",
+                              round(score.original, 4)))
+        
+        # plotting for fake
+        plot(cons.dend2)
+        factors = factor(cutree(cons.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main  = paste0(hc.func,".", methods[c],
+                  " wrong data with \n", dists[h], " distance score: ", round(score.cons, 4)))
+        
+      }
+        }else{
+          
+          
+          # determining values of interest
+        # cons
+        cons.hc = get(hc.func)(dist(scale(cons.data), method = dists[h]))
+        cons.dend = as.dendrogram(cons.hc)
+        cons.phylo = convert_to_phylo(cons.hc)
+        score.cons =  L_score(cons.phylo, original.data[, -3])
+        order = as.numeric(cons.phylo$tip.label)
+        cons.labels = original.data$Y[order]
+        colors = ifelse(cons.labels == 1, "red", "blue")
+        cons.dend2 = assign_values_to_leaves_edgePar(dend = cons.dend, value = 
+                                                  colors, edgePar = "col")
+        
+        # original
+        original.hc = get(hc.func)(dist(scale(original.data[, -3]), method = dists[h]))
+        original.dend = as.dendrogram(original.hc)
+        original.phylo = convert_to_phylo(original.hc)
+        score.original = L_score(original.phylo, original.data[, -3])
+        order = as.numeric(original.phylo$tip.label)
+        original.labels = original.data$Y[order]
+        colors = ifelse(original.labels == 1, "red", "blue")
+        original.dend2 = assign_values_to_leaves_edgePar(dend = original.dend, value = 
+                                                  colors, edgePar = "col")
+          
+        
+        # plotting for original
+        plot(original.dend2)
+        factors = factor(cutree(original.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main = paste0(hc.func, 
+                        " original data \n score: ", round(score.original, 4)))
+        
+        # plotting for fake
+        plot(cons.dend2)
+        factors = factor(cutree(cons.hc, k = 2))
+        temp_data = original.data[, -3]
+        temp_data$labels = factors
+        plot(temp_data$X1, temp_data$X2, col = temp_data$labels, 
+             main  = paste0(hc.func,".", methods[c],
+                  " wrong data with \n", dists[h], " distance score: ", round(score.cons, 4)))
+        
 
-
-
-
+  }
+  
+        }
+    }
+  }
+}
+```
+```{r}
+dists = c("euclidean", "manhattan", "canberra")
+test.list = list(hclust = c("ward.D", "single","ward.D2", "average", "complete", "mcquitty", "median", "centroid"), agnes = c("weighted", "complete", "average", "ward"), diana = NULL)
+```
+```{r warning = F, results = 'hide'}
+plot_all_scores_2(sim.data, X_3, test.list, dists)
+```
 
 
 
