@@ -16,6 +16,7 @@ library(tictoc)
 library(mvMORPH)
 library(kmed)
 library(gtools)
+library(MLmetrics)
 
 # defining one hot encoder for simap
 onehotencoder = function(miss_data){
@@ -293,9 +294,9 @@ all_supervised_comparing = function(data, clust_list, test_index, dist = NA,
     clust.method = list.names[i]
     all.methods = test.list[[i]]
     if(is.na(dist) & is.na(mixed_dists)){mat = matrix(nrow = length(all.methods),
-                                                      ncol = 2)}else{
+                                                      ncol = 3)}else{
                                         mat = matrix(nrow = length(all.methods)*size,
-                                                     ncol = 3)
+                                                     ncol = 4)
                                                       }
     row.names(mat) = numeric(length = size * length(all.methods))
     for(j in (1:length(all.methods))){
@@ -304,10 +305,10 @@ all_supervised_comparing = function(data, clust_list, test_index, dist = NA,
         row.names(mat)[j] = paste0(clust.method,".", all.methods[j])
       }else{
         for(k in (1:size)){
-          mat[k + ((j - 1)* size), c(1,2)] = supervised_comparing(data, clust.method, 
+          mat[k + ((j - 1)* size), c(1,2,3)] = supervised_comparing(data, clust.method, 
                                           all.methods[j], test_index, dist = dist[k], 
                                           mixed_dists = mixed_dists[k])
-          mat[k + ((j - 1)* size),3] = dist.names[k]
+          mat[k + ((j - 1)* size),4] = dist.names[k]
           row.names(mat)[k + ((j - 1)* size)] = paste0(clust.method,".", all.methods[j])
         }
       }
@@ -352,17 +353,20 @@ supervised_comparing = function(data, clust, clust_method, test_index, dist = NA
     }
   perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
   hits = numeric(nrow(perms))
+  clusts = matrix(0, nrow = nrow(perms), ncol = length(clusters))
   for(i in (1:nrow(perms))){
     new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+    clusts[i, ] = new_clust
     temp_hit = (sum(new_clust == relab_y)/length(relab_y))
     hits[i] = temp_hit
   }
   max.index = which.max(hits)
+  F1_s = F1_Score(relab_y, clusts[max.index, ])
   maximum_index = hits[max.index]
   dend = convert_to_phylo(clust)
   score = L_score(dend, training_data)
-  names = c("Hits proportion", "Score")
-  comparisson = setNames(c(maximum_index, score), names)
+  names = c("Hits proportion", "F1", "Score")
+  comparisson = setNames(c(maximum_index, F1_s, score), names)
   return(comparisson)
 }
 
@@ -380,6 +384,7 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
   cross_val_results = L_cross_val(training_data, clust_list, dists = dists, mixed_dist = mixed_dist, 
               tol = tol, seed = 99)
   all_hits = numeric(0)
+  all_F1 = numeric(0)
   if(length(bool[bool != T]) == 0){
     if(is.na(dists) == T | length(dists) == 1){
       no_dists = T
@@ -425,14 +430,18 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
             results[j] = L_score(tree, test_data)
             perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
             hits = numeric(nrow(perms))
+            clusts = matrix(0, nrow = nrow(perms), ncol = length(clusters))
             for(i in (1:nrow(perms))){
               new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+              clusts[i, ] = new_clust
               temp_hit = (sum(new_clust == relab_y)/length(relab_y))
               hits[i] = temp_hit
             }
             max.index = which.max(hits)
+            F1_s = F1_Score(relab_y, clusts[max.index, ])
             maximum_index = hits[max.index]
             all_hits = c(all_hits, maximum_index)
+            all_F1 = c(all_F1, F1_s)
         }
         }else{
           # testando condições para ver se as variáveis sao mistas ou nao
@@ -454,14 +463,18 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
           results[j] = L_score(tree, test_data)
           perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
           hits = numeric(nrow(perms))
+          clusts = matrix(0, nrow = nrow(perms), ncol = length(clusters))
           for(i in (1:nrow(perms))){
             new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+            clusts[i, ] = new_clust
             temp_hit = (sum(new_clust == relab_y)/length(relab_y))
             hits[i] = temp_hit
           }
           max.index = which.max(hits)
+          F1_s = F1_Score(relab_y, clusts[max.index, ])
           maximum_index = hits[max.index]
           all_hits = c(all_hits, maximum_index)
+          all_F1 = c(all_F1, F1_s)
         }
     }else{
       if(length(bool[bool != T]) == 0){
@@ -478,14 +491,18 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
               clusters = factor(cutree(clust, k = nlvls))
               perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
               hits = numeric(nrow(perms))
+              clusts = matrix(0, nrow = nrow(perms), ncol = length(clusters))
               for(i in (1:nrow(perms))){
                 new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+                clusts[i, ] = new_clust
                 temp_hit = (sum(new_clust == relab_y)/length(relab_y))
                 hits[i] = temp_hit
               }
               max.index = which.max(hits)
+              F1_s = F1_Score(relab_y, clusts[max.index, ])
               maximum_index = hits[max.index]
               all_hits = c(all_hits, maximum_index)
+              all_F1 = c(all_F1, F1_s)
             }
           }else{
               d = get(func)(training_data, method = used.dists[h])
@@ -493,19 +510,24 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
               clusters = factor(cutree(clust, k = nlvls))
               perms = permutations(n = nlvls, r = nlvls,v = new_lvls)
               hits = numeric(nrow(perms))
+              clusts = matrix(0, nrow = nrow(perms), ncol = length(clusters))
               for(i in (1:nrow(perms))){
                 new_clust = mapvalues(clusters, from = levels(clusters), to = perms[i, ])
+                clusts[i, ] = new_clust
                 temp_hit = (sum(new_clust == relab_y)/length(relab_y))
                 hits[i] = temp_hit
               }
               max.index = which.max(hits)
+              F1_s = F1_Score(relab_y, clusts[max.index, ])
               maximum_index = hits[max.index]
               all_hits = c(all_hits, maximum_index)
+              all_F1 = c(all_F1, F1_s)
             }
           }
   }
   }
   cross_val_results$hits = all_hits
+  cross_val_results$F1 = all_F1
   return(cross_val_results)
 }
 
