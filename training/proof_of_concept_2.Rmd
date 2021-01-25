@@ -96,6 +96,7 @@ test.function = function(types, dend, original_data, tol,seed, col){
     # not scaling
     colnames(current_data) = cname
     rownames(current_data) = names
+    current_data = as.matrix(current_data[dend$tip.label, ])
     fit = mvBM(dend, current_data, model = "BMM", echo = T, method = "inverse")
     for (i in (1:n)){
       saved_value = current_data[i]
@@ -104,6 +105,8 @@ test.function = function(types, dend, original_data, tol,seed, col){
       miss_data[i, 1] = NA
       imp = estim(dend, miss_data, fit)
       y.pred = imp$estimates[i, 1]
+      print(y.pred)
+      print(saved_value)
       preds[i] = y.pred
       mse = ((y.pred - saved_value)^2)
       lines[i] =  mse
@@ -124,6 +127,7 @@ test.function = function(types, dend, original_data, tol,seed, col){
       lines[i] = mse/A
     }
   }
+  print(sum(lines/(n*2)))
   return(preds)
 }
 
@@ -152,6 +156,11 @@ mcquitty.dend = convert_to_phylo(mcquitty.hc)
 # plotting score for mcquitty distance
 score.mcquitty = L_score(mcquitty.dend, sim.data[, -3])
 score.mcquitty
+
+cons.hc = hclust(dist(scale(X_3)), method = "mcquitty")
+cons.dend = convert_to_phylo(cons.hc)
+score.cons = L_score(cons.dend, sim.data[, -3])
+score.cons
 ```
 ```{r}
 results = test.total(mcquitty.dend, sim.data[, -3])
@@ -250,14 +259,17 @@ results = test.total(ward.dend, sim.data[, -3])
 ```
 ```{r}
 temp_data = as.data.frame(sim.data$X1)
+rownames(temp_data) = c(1:nrow(sim.data))
+temp_data = as.data.frame(temp_data[as.numeric(ward.dend$tip.label), ])
 temp_data$X1_pred = results[[1]]
 colnames(temp_data) = c("X1", "Predictions")
-temp_data %>%
+p1 = temp_data %>%
 ggplot(aes(x = X1, y = Predictions)) +
           geom_point(color = "blue") +
           labs(x = "X1",
                 y = "Predictions") +
           theme_minimal()
+p1
 ```
 
 ```{r}
@@ -285,7 +297,9 @@ factors
 ```
 ```{r}
 temp_data = as.data.frame(sim.data$X2)
-temp_data$X2_pred = results[[1]]
+rownames(temp_data) = c(1:nrow(sim.data))
+temp_data = as.data.frame(temp_data[as.numeric(ward.dend$tip.label), ])
+temp_data$X2_pred = results[[2]]
 colnames(temp_data) = c("X2", "Predictions")
 temp_data %>%
 ggplot(aes(x = X2, y = Predictions)) +
