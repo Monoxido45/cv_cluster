@@ -59,6 +59,7 @@ row_computing = function(types, dend, original_data, tol,seed, col){
     # not scaling
     colnames(current_data) = cname
     rownames(current_data) = names
+    current_data = as.matrix(current_data[dend$tip.label, ])
     fit = mvBM(dend, current_data, model = "BMM", echo = T, method = "inverse")
     for (i in (1:n)){
       saved_value = current_data[i]
@@ -90,6 +91,174 @@ row_computing = function(types, dend, original_data, tol,seed, col){
 }
 
 
+# Defining FOM function for simple computation of figure of merit score
+
+FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA){
+  list.names = names(cl.list)
+  p = ncol(data)
+  l = length(list.names)
+  all_results = list()
+  dists.names = numeric(0)
+  
+  types = sapply(data, class)
+  bool =  (types == "integer" | types == "numeric")
+  if(length(bool[bool != T]) == 0){
+    if(length(dists) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = dists
+    }
+  }else{
+    if(is.na(mixed_dist) == T | length(mixed_dist) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = mixed_dist
+    }
+  }
+  
+  for(k in (1:l)){
+    hc.func = list.names[k]
+    methods = cl.list[[hc.func]]
+    m = length(methods)
+    if(no_dists == T){
+      if(m > 0){
+        for(c in (1:m)){
+          results = matrix(nrow = p, ncol = n)
+          for(j in 1:p){
+            test_data = as.data.frame(data[, j])
+            colnames(test_data) = colnames(data)[j]
+            rownames(test_data) = rownames(data)
+            training_data = data[, -j]
+            types = sapply(training_data, class)
+            bool =  (types == "integer" | types == "numeric")
+            
+            # testando condições para ver se as variáveis sao mistas ou nao
+            if(length(bool[bool != T]) == 0){
+              if((is.na(dists) == F) & (length(dists) == 1)){
+                d = dist(scale(training_data), method = dists)
+              }else{
+                d = dist(scale(training_data))
+              }
+            }else{
+              if((is.na(mixed_dist) == F) & (length(mixed_dist) == 1)){
+                d = distmix(scale(training_data), method = mixed_dist)
+              }else{
+                d = distmix(scale(training_data))
+              }
+            }
+            
+            clust = get(hc.func)(d, method = methods[c])
+            lvls = cutree(clust, k = nlvls)
+            test_data$factors = lvls
+            print(colnames(test_data)[2])
+            means = with(test_data, sapply(get(colnames(test_data)[1]), 
+                                           get(colnames(test_data)[2]), mean))
+            print(means)
+            results[j, ] = (test_data[1] - means[test_data[2]])^2
+          }
+          sums = sqrt(1/n*rowSums(results))
+          final_result = sum(sums)
+          all_results[[paste0(hc.func, ".", methods[c])]] = final_result
+        }}else{
+          for(j in 1:p){
+            test_data = as.data.frame(data[, j])
+            colnames(test_data) = colnames(data)[j]
+            rownames(test_data) = rownames(data)
+            training_data = data[, -j]
+            types = sapply(training_data, class)
+            bool =  (types == "integer" | types == "numeric")
+            
+            
+            # testando condições para ver se as variáveis sao mistas ou nao
+            if(length(bool[bool != T]) == 0){
+              if((is.na(dists) == F) & (length(dists) == 1)){
+                d = dist(scale(training_data), method = dists)
+              }else{
+                d = dist(scale(training_data))
+              }
+            }else{
+              if(length(mixed_dist) == 1){
+                d = distmix(scale(training_data), method = mixed_dist)
+              }else{
+                d = distmix(scale(training_data))
+              }
+            }
+            
+            clust = get(hc.func)(d)
+            lvls = cutree(clust, k = nlvls)
+            test_data$factors = lvls
+            means = with(test_data, sapply(get(colnames(test_data)[1]), 
+                                           get(colnames(test_data)[2]), mean))
+            results[j, ] = (test_data[1] - means[test_data[2]])^2
+          }
+          sums = sqrt(1/n*rowSums(results))
+          final_result = sum(sums)
+          all_results[[hc.func]] = final_result
+        }
+    }else{
+      if(length(bool[bool != T]) == 0){
+        func = "dist"
+      }else{
+        func = "distmix"
+      }
+      dists.length = length(used.dists)
+      for(h in 1:dists.length){
+        count = 0
+        if(m > 0){
+          for(c in (1:m)){
+            results = numeric(p)
+            for(j in 1:p){
+              test_data = as.data.frame(data[, j])
+              colnames(test_data) = colnames(data)[j]
+              rownames(test_data) = rownames(data)
+              training_data = data[, -j]
+              d = get(func)(training_data, method = used.dists[h])
+              clust = get(hc.func)(d, method = methods[c])
+              lvls = cutree(clust, k = nlvls)
+              test_data$factors = lvls
+              means = with(test_data, sapply(get(colnames(test_data)[1]), 
+                                             get(colnames(test_data)[2]), mean))
+              print(means)
+              results[j, ] = (test_data[1] - means[test_data[2]])^2
+            }
+            sums = sqrt(1/n*rowSums(results))
+            final_result = sum(sums)
+            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = final_result
+          }}else{
+            count = count + 1
+            for(j in 1:p){
+              test_data = as.data.frame(data[, j])
+              colnames(test_data) = colnames(data)[j]
+              rownames(test_data) = rownames(data)
+              training_data = data[, -j]
+              clust = get(hc.func)(d)
+              lvls = cutree(clust, k = nlvls)
+              test_data$factors = lvls
+              means = with(test_data, sapply(get(colnames(test_data)[1]), 
+                                             get(colnames(test_data)[2]), mean))
+              results[j, ] = (test_data[1] - means[test_data[2]])^2
+            }
+            sums = sqrt(1/n*rowSums(results))
+            final_result = sum(sums)
+            all_results[[paste0(hc.func, ".", ".", used.dists[h])]] = final_result
+          }
+        dists.names = c(dists.names, rep(used.dists[h], m + count))
+      }
+    }
+  }
+  if(length(dists.names) > 0){
+    all_foms = do.call(rbind, all_results)
+    foms_data.frame = as.data.frame(all_foms)
+    foms_data.frame$dist_names = dists.names
+    return(foms_data.frame)
+  }else{
+    all_foms = do.call(rbind, all_results)
+    return(all_foms)
+  }
+}
+
 
 
 # using mvMORPH
@@ -112,8 +281,8 @@ L_score = function(dend, original_data, tol  = 1e-20, seed = 99){
   score.matrix = foreach(j = 1:p, .combine = cbind,
                          .export = c("row_computing", "factorial.missing","onehotencoder"),
                          .packages = c("ape", "phytools", "mvMORPH")) %dopar% {
-                           lines = row_computing(types, dend, original_data, tol, seed, j)
-                           lines
+                          lines = row_computing(types, dend, original_data, tol, seed, j)
+                          lines
                          }
   stopCluster(cl)
   if(p == 1){
