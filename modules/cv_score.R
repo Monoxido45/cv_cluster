@@ -223,7 +223,6 @@ FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA){
           }}else{
             results = matrix(nrow = p, ncol = n)
             for(j in 1:p){
-              print(hc.func)
               training_data = data[, -j]
               d = get(func)(training_data, method = used.dists[h])
               clust = get(hc.func)(d)
@@ -477,6 +476,13 @@ all_supervised_comparing = function(data, clust_list, test_index, dist = NA,
     comp_list[[clust.method]] = mat
   }
 comp_data.frame = as.data.frame(do.call(rbind, comp_list))
+  if(is.na(dist) == F | is.na(mixed_dists) == F){
+    comp_data.frame = comp_data.frame %>%
+      mutate(V1 = as.numeric(V1),
+             V2 = as.numeric(V2),
+             V3 = as.numeric(V3),
+             V4 = as.factor(V4))
+  }
 return(comp_data.frame)
 }
 
