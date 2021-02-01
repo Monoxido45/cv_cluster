@@ -95,6 +95,7 @@ row_computing = function(types, dend, original_data, tol,seed, col){
 
 FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA){
   list.names = names(cl.list)
+  n = nrow(data)
   p = ncol(data)
   l = length(list.names)
   all_results = list()
@@ -123,13 +124,10 @@ FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA){
     methods = cl.list[[hc.func]]
     m = length(methods)
     if(no_dists == T){
-      if(m > 0){
+      if(is.na(methods) == F){
         for(c in (1:m)){
           results = matrix(nrow = p, ncol = n)
           for(j in 1:p){
-            test_data = as.data.frame(data[, j])
-            colnames(test_data) = colnames(data)[j]
-            rownames(test_data) = rownames(data)
             training_data = data[, -j]
             types = sapply(training_data, class)
             bool =  (types == "integer" | types == "numeric")
@@ -148,24 +146,21 @@ FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA){
                 d = distmix(scale(training_data))
               }
             }
-            
             clust = get(hc.func)(d, method = methods[c])
-            lvls = cutree(clust, k = nlvls)
-            test_data$factors = lvls
-            print(colnames(test_data)[2])
-            means = with(test_data, sapply(get(colnames(test_data)[1]), 
-                                           get(colnames(test_data)[2]), mean))
-            print(means)
-            results[j, ] = (test_data[1] - means[test_data[2]])^2
+            lvls = factor(cutree(clust, k = nlvls))
+            test_data = data.frame(variable = data[, j],
+                                   factors = lvls)
+            rownames(test_data) = rownames(data)
+            means = with(test_data, tapply(variable, 
+                                           factors, mean))
+            results[j, ] = (test_data[, 1] - means[as.numeric(test_data[, 2])])^2
           }
           sums = sqrt(1/n*rowSums(results))
           final_result = sum(sums)
           all_results[[paste0(hc.func, ".", methods[c])]] = final_result
         }}else{
+          results = matrix(nrow = p, ncol = n)
           for(j in 1:p){
-            test_data = as.data.frame(data[, j])
-            colnames(test_data) = colnames(data)[j]
-            rownames(test_data) = rownames(data)
             training_data = data[, -j]
             types = sapply(training_data, class)
             bool =  (types == "integer" | types == "numeric")
@@ -185,13 +180,14 @@ FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA){
                 d = distmix(scale(training_data))
               }
             }
-            
             clust = get(hc.func)(d)
-            lvls = cutree(clust, k = nlvls)
-            test_data$factors = lvls
-            means = with(test_data, sapply(get(colnames(test_data)[1]), 
-                                           get(colnames(test_data)[2]), mean))
-            results[j, ] = (test_data[1] - means[test_data[2]])^2
+            lvls = factor(cutree(clust, k = nlvls))
+            test_data = data.frame(variable = data[, j],
+                                   factors = lvls)
+            rownames(test_data) = rownames(data)
+            means = with(test_data, tapply(variable, 
+                                           factors, mean))
+            results[j, ] = (test_data[, 1] - means[as.numeric(test_data[, 2])])^2
           }
           sums = sqrt(1/n*rowSums(results))
           final_result = sum(sums)
@@ -205,56 +201,55 @@ FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA){
       }
       dists.length = length(used.dists)
       for(h in 1:dists.length){
-        count = 0
-        if(m > 0){
+        if(is.na(methods) == F){
           for(c in (1:m)){
-            results = numeric(p)
+            results = matrix(nrow = p, ncol = n)
             for(j in 1:p){
-              test_data = as.data.frame(data[, j])
-              colnames(test_data) = colnames(data)[j]
-              rownames(test_data) = rownames(data)
               training_data = data[, -j]
               d = get(func)(training_data, method = used.dists[h])
               clust = get(hc.func)(d, method = methods[c])
-              lvls = cutree(clust, k = nlvls)
-              test_data$factors = lvls
-              means = with(test_data, sapply(get(colnames(test_data)[1]), 
-                                             get(colnames(test_data)[2]), mean))
-              print(means)
-              results[j, ] = (test_data[1] - means[test_data[2]])^2
-            }
-            sums = sqrt(1/n*rowSums(results))
-            final_result = sum(sums)
-            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = final_result
-          }}else{
-            count = count + 1
-            for(j in 1:p){
-              test_data = as.data.frame(data[, j])
-              colnames(test_data) = colnames(data)[j]
+              lvls = factor(cutree(clust, k = nlvls))
+              test_data = data.frame(variable = data[, j],
+                                     factors = lvls)
               rownames(test_data) = rownames(data)
-              training_data = data[, -j]
-              clust = get(hc.func)(d)
-              lvls = cutree(clust, k = nlvls)
-              test_data$factors = lvls
-              means = with(test_data, sapply(get(colnames(test_data)[1]), 
-                                             get(colnames(test_data)[2]), mean))
-              results[j, ] = (test_data[1] - means[test_data[2]])^2
+              means = with(test_data, tapply(variable, 
+                                             factors, mean))
+              results[j, ] = (test_data[, 1] - means[as.numeric(test_data[, 2])])^2
             }
             sums = sqrt(1/n*rowSums(results))
             final_result = sum(sums)
-            all_results[[paste0(hc.func, ".", ".", used.dists[h])]] = final_result
+            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(final_result,
+                                                                              used.dists[h])
+          }}else{
+            results = matrix(nrow = p, ncol = n)
+            for(j in 1:p){
+              print(hc.func)
+              training_data = data[, -j]
+              d = get(func)(training_data, method = used.dists[h])
+              clust = get(hc.func)(d)
+              lvls = factor(cutree(clust, k = nlvls))
+              test_data = data.frame(variable = data[, j],
+                                     factors = lvls)
+              rownames(test_data) = rownames(data)
+              means = with(test_data, tapply(variable, 
+                                             factors, mean))
+              results[j, ] = (test_data[, 1] - means[as.numeric(test_data[, 2])])^2
+            }
+            sums = sqrt(1/n*rowSums(results))
+            final_result = sum(sums)
+            all_results[[paste0(hc.func, ".", used.dists[h])]] = c(final_result,
+                                                                        used.dists[h])
           }
-        dists.names = c(dists.names, rep(used.dists[h], m + count))
       }
     }
   }
   if(length(dists.names) > 0){
     all_foms = do.call(rbind, all_results)
     foms_data.frame = as.data.frame(all_foms)
-    foms_data.frame$dist_names = dists.names
+    foms_data.frame[, 1] = as.numeric(foms_data.frame[, 1])
     return(foms_data.frame)
   }else{
-    all_foms = do.call(rbind, all_results)
+    all_foms = as.data.frame(do.call(rbind, all_results))
     return(all_foms)
   }
 }
@@ -301,8 +296,6 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
   p = ncol(original_data)
   l = length(list.names)
   all_results = list()
-  dists.names = numeric(0)
-  
   types = sapply(original_data, class)
   bool =  (types == "integer" | types == "numeric")
   if(length(bool[bool != T]) == 0){
@@ -326,7 +319,7 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
     methods = cl.list[[hc.func]]
     m = length(methods)
     if(no_dists == T){
-        if(m > 0){
+        if(is.na(methods) == F){
         for(c in (1:m)){
           results = numeric(p)
           for(j in 1:p){
@@ -351,13 +344,13 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
               d = distmix(scale(training_data))
             }
           }
-          
           clust = get(hc.func)(d, method = methods[c])
           tree = convert_to_phylo(clust)
           results[j] = L_score(tree, test_data)
           }
-          all_results[[paste0(hc.func, ".", methods[c])]] = results
+          all_results[[paste0(hc.func, ".", methods[c])]] = sum(results)
         }}else{
+          results = numeric(p)
           for(j in 1:p){
           test_data = as.data.frame(original_data[, j])
           colnames(test_data) = colnames(original_data)[j]
@@ -386,7 +379,7 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
           tree = convert_to_phylo(clust)
           results[j] = L_score(tree, test_data)
           }
-          all_results[[hc.func]] = results
+          all_results[[hc.func]] = sum(results)
           }
     }else{
       if(length(bool[bool != T]) == 0){
@@ -396,8 +389,7 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
       }
       dists.length = length(used.dists)
       for(h in 1:dists.length){
-        count = 0
-      if(m > 0){
+      if(is.na(methods) == F){
         for(c in (1:m)){
           results = numeric(p)
           for(j in 1:p){
@@ -410,34 +402,34 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
             tree = convert_to_phylo(clust)
             results[j] = L_score(tree, test_data)
           }
-          all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = results
+          all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(sum(results), 
+                                                                                  used.dists[h])
         }}else{
-          count = count + 1
+          results = numeric(p)
           for(j in 1:p){
             test_data = as.data.frame(original_data[, j])
             colnames(test_data) = colnames(original_data)[j]
             rownames(test_data) = rownames(original_data)
             training_data = original_data[, -j]
+            d = get(func)(training_data, method = used.dists[h])
             clust = get(hc.func)(d)
             tree = convert_to_phylo(clust)
             results[j] = L_score(tree, test_data)
           }
-          all_results[[paste0(hc.func, ".", used.dists[h])]] = results
+          all_results[[paste0(hc.func, ".", used.dists[h])]] = c(sum(results), used.dists[h])
         }
-      dists.names = c(dists.names, rep(used.dists[h], m + count))
     }
       }
   }
-  if(length(dists.names) > 0){
+  if(no_dists == F){
   all_cvs = do.call(rbind, all_results)
-  all_cvs = as.matrix(rowSums(all_cvs))
   cvs_data.frame = as.data.frame(all_cvs)
-  cvs_data.frame$dist_names = dists.names
+  cvs_data.frame$V1 = as.numeric(cvs_data.frame$V1)
   return(cvs_data.frame)
   }else{
     all_cvs = do.call(rbind, all_results)
-    all_cvs = as.matrix(rowSums(all_cvs))
-    return(all_cvs)
+    cvs_data.frame = as.data.frame(all_cvs)
+    return(cvs_data.frame)
     }
   }
 
@@ -574,7 +566,7 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
     methods = clust_list[[hc.func]]
     m = length(methods)
     if(no_dists == T){
-      if(m > 0){
+      if(is.na(methods) == F){
         for(c in (1:m)){
             types = sapply(training_data, class)
             bool =  (types == "integer" | types == "numeric")
@@ -653,7 +645,7 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
       }
       dists.length = length(used.dists)
       for(h in 1:dists.length){
-        if(m > 0){
+        if(is.na(methods) == F){
           for(c in (1:m)){
               d = get(func)(training_data, method = used.dists[h])
               clust = get(hc.func)(d, method = methods[c])
