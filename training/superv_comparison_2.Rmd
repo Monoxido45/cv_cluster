@@ -1,5 +1,5 @@
 ---
-title: "Supervision comparissons"
+title: "Supervision comparisons"
 author: "Luben Miguel"
 date: "08/02/2021"
 output: html_document
@@ -45,7 +45,8 @@ display.superv_comp = function(data, clust.list, test_index, dist = NA){
   dplyr::arrange(V4)
   fom.test$V1 = as.numeric(fom.test$V1)
   data.test$FOM = fom.test$V1
-  
+  # dropping NA´s from V3
+  data.test %<>% drop_na(V3)
   # graphing and displaying correlations
   g1 = data.test %>%
   ggplot(aes(x = V1, y = V3, colour = V4)) +
@@ -155,7 +156,7 @@ CV_display.superv_comp = function(data, clust.list, test_index, dist = NA){
   labs(x = "Proportion of hits",
        y = "Scores",
        colour = "Distances",
-       title = "Scatterplot of proportion of hits versus Score values 
+       title = "Scatterplot of proportion of hits versus Cross-Validated Score values 
        according to different distances") +
   theme(text = element_text(size = 11, 
                             family ="serif"),
@@ -169,7 +170,7 @@ CV_display.superv_comp = function(data, clust.list, test_index, dist = NA){
   labs(x = "F1 score",
        y = "Scores",
        colour = "Distances",
-       title = "Scatterplot of F1 versus Score values 
+       title = "Scatterplot of F1 versus Cross-Validated Score values 
        according to different distances") +
   theme(text = element_text(size = 11, 
                             family ="serif"),
@@ -183,7 +184,7 @@ CV_display.superv_comp = function(data, clust.list, test_index, dist = NA){
   labs(x = "FOM score",
        y = "Scores",
        colour = "Distances",
-       title = "Scatterplot of FOM versus Score values 
+       title = "Scatterplot of FOM versus Cross-Validated Score values 
        according to different distances") +
   theme(text = element_text(size = 11, 
                             family ="serif"),
@@ -222,15 +223,116 @@ CV_display.superv_comp = function(data, clust.list, test_index, dist = NA){
   show(g2)
   show(g3)
   cat("Correlations between cross validated score and other variables: \n")
-  cat("Score versus proportion of hits: ", cor(data.test$V1, data.test$hits, method = "spearman"), "\n")
-  cat("Score versus F1: ", cor(data.test$V1, data.test$F1, method = "spearman"), "\n")
-  cat("Score versus FOM: ", cor(data.test$V1, data.test$FOM, method = "spearman"), "\n")
+  cat("Cross validated score versus proportion of hits: ", cor(data.test$V1, data.test$hits, method = "spearman"), "\n")
+  cat("Cross validated score versus F1: ", cor(data.test$V1, data.test$F1, method = "spearman"), "\n")
+  cat("Cross validated score versus FOM: ", cor(data.test$V1, data.test$FOM, method = "spearman"), "\n")
   
   show(g4)
   show(g5)
   cat("Correlations between FOM and other variables: \n")
   cat("FOM versus F1: ", cor(data.test$FOM, data.test$hits, method = "spearman"), "\n")
   cat("FOM versus proportion of hits: ", cor(data.test$FOM, data.test$F1, method = "spearman"), "\n")
+  return(data.test)
+}
+
+
+display_data.superv_comp = function(data){
+  # k = nlevels(data[, test_index])
+  # data.test = all_supervised_comparing(data, clust = clust.list, test_index = test_index, dist = dist)
+  data.test = data
+  # fom.test = FOM(data[, -(test_index)], nlvls = k, clust.list, dist)
+  # arranging datas
+  # fom.test = fom.test %>%
+  # dplyr::arrange(V2)
+  # data.test = data.test %>%
+  # dplyr::arrange(V4)
+  # fom.test$V1 = as.numeric(fom.test$V1)
+  # data.test$FOM = fom.test$V1
+  
+  # graphing and displaying correlations
+  g1 = data.test %>%
+  ggplot(aes(x = V1, y = V3, colour = V4)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "Proportion of hits",
+       y = "Scores",
+       colour = "Distances",
+       title = "Scatterplot of proportion of hits versus Score values 
+       according to different distances") +
+  theme(text = element_text(size = 11, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5)) +
+  scale_colour_brewer(palette = "Set1")
+  
+  g2 = data.test %>%
+  ggplot(aes(x = V2, y = V3, colour = V4)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "F1 score",
+       y = "Scores",
+       colour = "Distances",
+       title = "Scatterplot of F1 versus Score values 
+       according to different distances") +
+  theme(text = element_text(size = 11, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5)) +
+  scale_colour_brewer(palette = "Set1")
+  
+  g3 = data.test %>%
+  ggplot(aes(x = FOM, y = V3, colour = V4)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "FOM score",
+       y = "Scores",
+       colour = "Distances",
+       title = "Scatterplot of FOM versus Score values 
+       according to different distances") +
+  theme(text = element_text(size = 11, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5)) +
+  scale_colour_brewer(palette = "Set1")
+  
+  g4 = data.test %>%
+  ggplot(aes(x = V1, y = FOM, colour = V4)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "Proportion of hits",
+       y = "Scores",
+       colour = "Distances",
+       title = "Scatterplot of proportion of hits versus FOM Score values 
+       according to different distances") +
+  theme(text = element_text(size = 11, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5)) +
+  scale_colour_brewer(palette = "Set1")
+  
+  g5 = data.test %>%
+  ggplot(aes(x = V2, y = FOM, colour = V4)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "F1 score",
+       y = "Scores",
+       colour = "Distances",
+       title = "Scatterplot of F1 versus FOM Score values 
+       according to different distances") +
+  theme(text = element_text(size = 11, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5)) +
+  scale_colour_brewer(palette = "Set1")
+  
+  show(g1)
+  show(g2)
+  show(g3)
+  cat("Correlations between score and other variables: \n")
+  cat("Score versus proportion of hits: ", cor(data.test$V3, data.test$V1, method = "spearman"), "\n")
+  cat("Score versus F1: ", cor(data.test$V3, data.test$V2, method = "spearman"), "\n")
+  cat("Score versus FOM: ", cor(data.test$V3, data.test$FOM, method = "spearman"), "\n")
+  
+  show(g4)
+  show(g5)
+  cat("Correlations between FOM and other variables: \n")
+  cat("FOM versus F1: ", cor(data.test$FOM, data.test$V2, method = "spearman"), "\n")
+  cat("FOM versus proportion of hits: ", cor(data.test$FOM, data.test$V1, method = "spearman"), "\n")
   return(data.test)
 }
 
@@ -314,14 +416,15 @@ toc()
 Importing and testing real datasets: \
 **Prima indians diabetes dataset**
 ```{r}
-n = 300
+n = 350
 # prima indians dataset
 library(data.table)
 prima_data <- as.data.frame(fread('https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.csv'))
-chosen_rows = sample(1:nrow(prima_data), n, replace = F)
-prima_data = prima_data[chosen_rows, ]
+selected_rows = sample(1:nrow(prima_data), n, replace = F)
 # selecting rows (too many samples)
 prima_data$V9 = as.factor(prima_data$V9)
+prima_data = prima_data[selected_rows, ]
+row.names(prima_data) = 1:nrow(prima_data)
 head(prima_data)
 ```
 ```{r}
@@ -338,22 +441,7 @@ head(wheat_data)
 ```
 ```{r}
 tic("Running time for supervisioned comparisson in wheat seeds dataset")
-display.superv_comp(wheat_data, test.list, test_index = 8, dist = dists)
-toc()
-```
-\
-**Prima indians diabetes dataset**
-```{r}
-# prima indians dataset
-library(data.table)
-prima_data <- as.data.frame(fread('https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.csv'))
-# selecting rows (too many samples)
-prima_data$V9 = as.factor(prima_data$V9)
-head(prima_data)
-```
-```{r}
-tic("Running time for supervisioned comparisson in prima indians diabetes dataset")
-display.superv_comp(prima_data, test.list, test_index = 9, dist = dists)
+wheat_data.test = display.superv_comp(wheat_data, test.list, test_index = 8, dist = dists)
 toc()
 ```
 \
@@ -361,10 +449,78 @@ toc()
 ```{r}
 ionosphere_data = as.data.frame(read.table("https://archive.ics.uci.edu/ml/machine-learning-databases/ionosphere/ionosphere.data", sep = ","))
 ionosphere_data$V35 = as.factor(ionosphere_data$V35)
-head(ionosphere_data)
+# droping second variable
+ionosphere_data = ionosphere_data[, -2]
+pca_ionosphere = prcomp(ionosphere_data[, -34], center = TRUE,scale. = TRUE)
+summary(pca_ionosphere)
+
+# selecting first 12 components
+ionosphere_components = as.data.frame((pca_ionosphere$x)[, 1:12])
+ionosphere_components$label = ionosphere_data[, 34]
+head(ionosphere_components)
 ```
 ```{r}
 tic("Running time for supervisioned comparisson in ionosphere dataset")
-display.superv_comp(ionosphere_data, test.list, test_index = 35, dist = dists)
+ionosphere_data.test = display.superv_comp(ionosphere_components, test.list, test_index = 13, 
+                                           dist = dists)
 toc()
 ```
+\
+**Glass data**
+```{r}
+glass.data = as.data.frame(read.table("https://archive.ics.uci.edu/ml/machine-learning-databases/glass/glass.data", sep = ","))
+glass.data = glass.data[, -1]
+glass.data$V11 = as.factor(glass.data$V11)
+head(glass.data)
+```
+```{r}
+tic("Running time for supervisioned comparisson in glass dataset")
+glass_data.test = display.superv_comp(glass.data, test.list, test_index = 10, 
+                                           dist = dists)
+toc()
+```
+\
+**Haberman´s survival**
+```{r}
+haberman.data = as.data.frame(read.table("https://archive.ics.uci.edu/ml/machine-learning-databases/haberman/haberman.data", sep = ","))
+haberman.data$V4 = as.factor(haberman.data$V4)
+head(haberman.data)
+```
+```{r}
+tic("Running time for supervisioned comparisson in glass dataset")
+haberman_data.test = display.superv_comp(haberman.data, test.list, test_index = 4, 
+                                           dist = dists)
+toc()
+```
+\
+**Wine data**
+```{r}
+wine.data = as.data.frame(read.table("https://archive.ics.uci.edu/ml/machine-learning-databases/wine/wine.data", sep = ","))
+wine.data$V1 = as.factor(wine.data$V1)
+head(wine.data)
+```
+```{r}
+tic("Running time for supervisioned comparisson in wine dataset")
+wine_data.test = display.superv_comp(wine.data, test.list, test_index = 1, 
+                                           dist = dists)
+toc()
+```
+Investigating some outliers
+```{r}
+hclust.median.canb = hclust(dist(scale(wine.data[, -1]), method = "canberra"), method = "median")
+fviz_dend(hclust.median.canb)
+```
+```{r}
+hclust.single.eucl = hclust(dist(scale(wine.data[, -1])), method = "single")
+fviz_dend(hclust.single.eucl)
+```
+```{r}
+hclust.single.manh = hclust(dist(scale(wine.data[, -1]), method = "manhattan"), method = "single")
+fviz_dend(hclust.single.manh)
+```
+```{r}
+tic("Running time for cv_superv_comp in wheat dataset")
+cv_wheat.test = CV_display.superv_comp(wheat_data, test.list, test_index = 8, dist = dists)
+toc()
+```
+
