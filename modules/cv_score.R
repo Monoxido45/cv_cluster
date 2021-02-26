@@ -60,7 +60,7 @@ row_computing = function(types, dend, original_data, tol,seed, col){
     colnames(current_data) = cname
     rownames(current_data) = names
     current_data = as.matrix(current_data[dend$tip.label, ])
-    fit = mvBM(dend, current_data, model = "BMM", echo = T, method = "inverse")
+    fit = mvBM(dend, current_data, model = "BMM", echo = T, method = "pic")
     for (i in (1:n)){
       saved_value = current_data[i]
       miss_data = current_data
@@ -531,7 +531,10 @@ supervised_comparing = function(data, clust, clust_method, test_index, dist = NA
   F1_s = F1_Score(relab_y, clusts[max.index, ])
   maximum_index = hits[max.index]
   dend = convert_to_phylo(clust)
-  score = L_score(dend, training_data)
+  score = tryCatch(L_score(dend, training_data),  silent = T, error=function(e) e)
+  if(inherits(score, "error")){
+    score = NA
+  }
   names = c("Hits proportion", "F1", "Score")
   comparisson = setNames(c(maximum_index, F1_s, score), names)
   return(comparisson)
