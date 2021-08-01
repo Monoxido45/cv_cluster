@@ -83,6 +83,7 @@ row_computing = function(types, dend, original_data, tol,seed, col){
       names(miss_data) = names
       miss_data[i] = NA
       pi = factorial.missing(dend, miss_data, i)
+      print(pi)
       mse = (sum((saved_value - pi)^2))
       lines[i] = mse/A
     }
@@ -127,6 +128,7 @@ scaled_row_computing = function(types, dend, original_data, tol,seed, col){
       names(miss_data) = names
       miss_data[i] = NA
       pi = factorial.missing(dend, miss_data, i)
+      print(pi)
       mse = (sum((saved_value - pi)^2))
       lines[i] = mse/A
     }
@@ -332,7 +334,7 @@ L_score = function(dend, original_data, scale = F, tol  = 1e-20, seed = 99){
   # paralellizing
   if(scale == F){
   cores = detectCores()
-  cl = makeCluster(cores[1] - 1)
+  cl = makeCluster(cores[1] - 3)
   clusterExport(cl, c("row_computing", "factorial.missing",
                       "onehotencoder"))
   registerDoParallel(cl)
@@ -372,8 +374,8 @@ L_score = function(dend, original_data, scale = F, tol  = 1e-20, seed = 99){
 }
 
 
-L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol = 1e-20, seed = 99,
-                       scale = F){
+L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol = 1e-20, seed = 99, 
+                       scale = F, median = F){
   list.names = names(cl.list)
   p = ncol(original_data)
   l = length(list.names)
@@ -401,83 +403,6 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
     methods = cl.list[[hc.func]]
     m = length(methods)
     if(no_dists == T){
-        if(is.na(methods) == F){
-        for(c in (1:m)){
-          results = numeric(p)
-          for(j in 1:p){
-          test_data = as.data.frame(original_data[, j])
-          colnames(test_data) = colnames(original_data)[j]
-          rownames(test_data) = rownames(original_data)
-          training_data = original_data[, -j]
-          types = sapply(training_data, class)
-          bool =  (types == "integer" | types == "numeric")
-          
-          # testando condições para ver se as variáveis sao mistas ou nao
-          if(length(bool[bool != T]) == 0){
-            if((is.na(dists) == F) & (length(dists) == 1)){
-              d = dist(scale(training_data), method = dists)
-            }else{
-              d = dist(scale(training_data))
-            }
-          }else{
-            if((is.na(mixed_dist) == F) & (length(mixed_dist) == 1)){
-              d = distmix(scale(training_data), method = mixed_dist)
-            }else{
-              d = distmix(scale(training_data))
-            }
-          }
-          clust = get(hc.func)(d, method = methods[c])
-          tree = convert_to_phylo(clust)
-          results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
-                                silent = T, error=function(msg){
-                                  return(NA)
-                                })
-          }
-    all_results[[paste0(hc.func, ".", methods[c])]] = sum(results, na.rm = T)/(length(results) - 
-                                                                                       sum(is.na(results)))
-        }}else{
-          results = numeric(p)
-          for(j in 1:p){
-          test_data = as.data.frame(original_data[, j])
-          colnames(test_data) = colnames(original_data)[j]
-          rownames(test_data) = rownames(original_data)
-          training_data = original_data[, -j]
-          types = sapply(training_data, class)
-          bool =  (types == "integer" | types == "numeric")
-          
-          
-          # testando condições para ver se as variáveis sao mistas ou nao
-          if(length(bool[bool != T]) == 0){
-            if((is.na(dists) == F) & (length(dists) == 1)){
-              d = dist(scale(training_data), method = dists)
-            }else{
-              d = dist(scale(training_data))
-            }
-          }else{
-            if(length(mixed_dist) == 1){
-              d = distmix(scale(training_data), method = mixed_dist)
-            }else{
-              d = distmix(scale(training_data))
-            }
-          }
-          
-          clust = get(hc.func)(d)
-          tree = convert_to_phylo(clust)
-          results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
-                                  silent = T, error=function(msg){
-                                    return(NA)
-                                  })
-          }
-          all_results[[hc.func]] = sum(results, na.rm = T)/(length(results) - sum(is.na(results)))
-          }
-    }else{
-      if(length(bool[bool != T]) == 0){
-        func = "dist"
-      }else{
-        func = "distmix"
-      }
-      dists.length = length(used.dists)
-      for(h in 1:dists.length){
       if(is.na(methods) == F){
         for(c in (1:m)){
           results = numeric(p)
@@ -486,7 +411,23 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
             colnames(test_data) = colnames(original_data)[j]
             rownames(test_data) = rownames(original_data)
             training_data = original_data[, -j]
-            d = get(func)(scale(training_data), method = used.dists[h])
+            types = sapply(training_data, class)
+            bool =  (types == "integer" | types == "numeric")
+            
+            # testando condições para ver se as variáveis sao mistas ou nao
+            if(length(bool[bool != T]) == 0){
+              if((is.na(dists) == F) & (length(dists) == 1)){
+                d = dist(scale(training_data), method = dists)
+              }else{
+                d = dist(scale(training_data))
+              }
+            }else{
+              if((is.na(mixed_dist) == F) & (length(mixed_dist) == 1)){
+                d = distmix(scale(training_data), method = mixed_dist)
+              }else{
+                d = distmix(scale(training_data))
+              }
+            }
             clust = get(hc.func)(d, method = methods[c])
             tree = convert_to_phylo(clust)
             results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
@@ -494,9 +435,12 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
                                     return(NA)
                                   })
           }
-          all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(
-            sum(results, na.rm = T)/(length(results) - sum(is.na(results))), 
-            used.dists[h])
+          if(median == F){      
+            all_results[[paste0(hc.func, ".", methods[c])]] = sum(results, na.rm = T)/(length(results) - 
+                                                                                         sum(is.na(results)))
+          }else{
+            all_results[[paste0(hc.func, ".", methods[c])]] = median(results, na.rm = T)
+          }
         }}else{
           results = numeric(p)
           for(j in 1:p){
@@ -504,7 +448,25 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
             colnames(test_data) = colnames(original_data)[j]
             rownames(test_data) = rownames(original_data)
             training_data = original_data[, -j]
-            d = get(func)(scale(training_data), method = used.dists[h])
+            types = sapply(training_data, class)
+            bool =  (types == "integer" | types == "numeric")
+            
+            
+            # testando condições para ver se as variáveis sao mistas ou nao
+            if(length(bool[bool != T]) == 0){
+              if((is.na(dists) == F) & (length(dists) == 1)){
+                d = dist(scale(training_data), method = dists)
+              }else{
+                d = dist(scale(training_data))
+              }
+            }else{
+              if(length(mixed_dist) == 1){
+                d = distmix(scale(training_data), method = mixed_dist)
+              }else{
+                d = distmix(scale(training_data))
+              }
+            }
+            
             clust = get(hc.func)(d)
             tree = convert_to_phylo(clust)
             results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
@@ -512,23 +474,84 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
                                     return(NA)
                                   })
           }
-          all_results[[paste0(hc.func, ".", used.dists[h])]] = c(
-          sum(results, na.rm = T)/(length(results) - sum(is.na(results))), used.dists[h])
+          if(median == F){      
+            all_results[[hc.func]] = sum(results, na.rm = T)/(length(results) - 
+                                                                sum(is.na(results)))
+          }else{
+            all_results[[hc.func]] = median(results, na.rm = T)
+          }
         }
-    }
+    }else{
+      if(length(bool[bool != T]) == 0){
+        func = "dist"
+      }else{
+        func = "distmix"
       }
+      dists.length = length(used.dists)
+      for(h in 1:dists.length){
+        if(is.na(methods) == F){
+          for(c in (1:m)){
+            results = numeric(p)
+            for(j in 1:p){
+              test_data = as.data.frame(original_data[, j])
+              colnames(test_data) = colnames(original_data)[j]
+              rownames(test_data) = rownames(original_data)
+              training_data = original_data[, -j]
+              d = get(func)(scale(training_data), method = used.dists[h])
+              clust = get(hc.func)(d, method = methods[c])
+              tree = convert_to_phylo(clust)
+              results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
+                                    silent = T, error=function(msg){
+                                      return(NA)
+                                    })
+            }
+            if(median == F){      
+              all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = 
+                c(sum(results, na.rm = T)/(length(results) - sum(is.na(results))),
+                  used.dists[h])
+            }else{
+              all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = 
+                c(median(results, na.rm = T), used.dists[h])
+            }
+          }}else{
+            results = numeric(p)
+            for(j in 1:p){
+              test_data = as.data.frame(original_data[, j])
+              colnames(test_data) = colnames(original_data)[j]
+              rownames(test_data) = rownames(original_data)
+              training_data = original_data[, -j]
+              d = get(func)(scale(training_data), method = used.dists[h])
+              clust = get(hc.func)(d)
+              tree = convert_to_phylo(clust)
+              results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
+                                    silent = T, error=function(msg){
+                                      return(NA)
+                                    })
+            }
+            if(median == F){      
+              all_results[[paste0(hc.func, ".", used.dists[h])]] = 
+                c(sum(results, na.rm = T)/(length(results) - sum(is.na(results))),  
+                  used.dists[h])
+            }else{
+              all_results[[paste0(hc.func, ".", used.dists[h])]] = 
+                c(median(results, na.rm = T), used.dists[h])
+            }
+          }
+      }
+    }
   }
   if(no_dists == F){
-  all_cvs = do.call(rbind, all_results)
-  cvs_data.frame = as.data.frame(all_cvs)
-  cvs_data.frame$V1 = as.numeric(cvs_data.frame$V1)
-  return(cvs_data.frame)
+    all_cvs = do.call(rbind, all_results)
+    cvs_data.frame = as.data.frame(all_cvs)
+    cvs_data.frame$V1 = as.numeric(cvs_data.frame$V1)
+    return(cvs_data.frame)
   }else{
     all_cvs = do.call(rbind, all_results)
     cvs_data.frame = as.data.frame(all_cvs)
     return(cvs_data.frame)
-    }
   }
+}
+
 
 
 all_supervised_comparing = function(data, clust_list, test_index, dist = NA, scale = F, 
@@ -641,7 +664,7 @@ supervised_comparing = function(data, clust, clust_method, test_index, dist = NA
 }
 
 supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists = NA, mixed_dist = NA,
-                                            tol = 1e-20, scale = F){
+                                            tol = 1e-20, scale = F, median = F){
   list.names = names(clust_list)
   training_data = data[, -test_index]
   test_data = data[, test_index]
@@ -652,7 +675,7 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
   relab_y = mapvalues(test_data, from = lvls, to = 1:nlvls)
   new_lvls = levels(relab_y)
   cross_val_results = L_cross_val(training_data, clust_list, dists = dists, mixed_dist = mixed_dist, 
-              tol = tol, seed = 99, scale =  scale)
+              tol = tol, seed = 99, scale =  scale, median = median)
   all_hits = numeric(0)
   all_F1 = numeric(0)
   if(length(bool[bool != T]) == 0){
