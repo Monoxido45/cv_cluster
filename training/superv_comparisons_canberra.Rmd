@@ -139,10 +139,10 @@ display.superv_comp = function(data, clust.list, test_index, scale = F, dist = N
   }
 }
 
-CV_display.superv_comp = function(data, clust.list, test_index, dist = NA, scale = F){
+CV_display.superv_comp = function(data, clust.list, test_index, dist = NA, scale = F, median = F){
   k = nlevels(data[, test_index])
   data.test = supervised_comparing_L_cross_val(data, clust.list, test_index = test_index, dists = dist,
-                                               scale = scale)
+                                               scale = scale, median = median)
   fom.test = FOM(data[, -(test_index)], nlvls = k, clust.list, dist, scale = scale)
   if(length(dist) > 1){
   # arranging datas
@@ -500,6 +500,13 @@ head(sim.data, 4)
 cv_sim.test_2 = CV_display.superv_comp(sim.data, test.list, test_index = 3, dist = dists, 
                                        scale = T)
 ```
+\
+Median:
+```{r}
+cv_sim.test_2 = CV_display.superv_comp(sim.data, test.list, test_index = 3, dist = dists, 
+                                       scale = T, median = T)
+```
+
 ```{r}
 flowers = iris
 cv_flowers.test = CV_display.superv_comp(flowers, test.list, test_index = 5, dist = dists,
@@ -628,7 +635,52 @@ cv_wine_data.test = CV_display.superv_comp(wine.data, test.list, test_index = 1,
                                            dist = dists)
 toc()
 ```
-
+All canberra Median CVS:
+```{r}
+cv_sim.test_2 = CV_display.superv_comp(sim.data, test.list, test_index = 3, dist = dists, 
+                                       scale = T, median = T)
+```
+```{r}
+flowers = iris
+cv_flowers.test = CV_display.superv_comp(flowers, test.list, test_index = 5, dist = dists,
+                                         scale = T, median = T)
+```
+```{r}
+tic("Running time for supervisioned comparisson in prima indians diabetes dataset")
+cv_prima_data.test = CV_display.superv_comp(prima_data, test.list, test_index = 9, dist = dists,
+                                         scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in wheat seeds dataset")
+cv_wheat_data.test = CV_display.superv_comp(wheat_data, test.list, test_index = 8, dist = dists,
+                                         scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in ionosphere dataset")
+cv_ionosphere_data.test = CV_display.superv_comp(ionosphere_components, test.list, test_index = 13, 
+                                           dist = dists, scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in glass dataset")
+cv_glass_data.test = CV_display.superv_comp(glass.data, test.list, test_index = 10, 
+                                           dist = dists, scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in glass dataset")
+cv_haberman_data.test = CV_display.superv_comp(haberman.data, test.list, test_index = 4, 
+                                           dist = dists, scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in wine dataset")
+cv_wine_data.test = CV_display.superv_comp(wine.data, test.list, test_index = 1, 
+                                           dist = dists)
+toc()
+```
 Taking only canberra outputs and plotting trees cut at certain levels for each dataset:
 ```{r}
 
@@ -647,7 +699,7 @@ test.list = list(hclust = c("ward.D", "single","ward.D2", "average", "complete",
 dist = c("canberra")
 ```
 ```{r}
-plot_all_trees = function(quant_data, cl.list, dist, nlvls = 2, factor){
+plot_all_trees = function(quant_data, cl.list, dist, factor){
   list.names = names(cl.list)
   l = length(list.names)
   scores = L_cross_val(quant_data,  cl.list, dists = dist, scale = T)
@@ -682,10 +734,31 @@ plot_all_trees = function(quant_data, cl.list, dist, nlvls = 2, factor){
           labs(title = paste0(hc.func,".", methods[c],
         " cv score: ", round(score.original, 4), " \n F1:", round(F1, 4)))
         show(p1.original)
+        
+        # original
+        order = original.dend$tip.label
+        original.labels = relab_y[as.numeric(order)]
+        if(nlvls == 2){
+          b = order[original.labels == "2"]
+          tt<-paintBranches(original.dend, edge = sapply(b, match, original.dend$tip.label),
+          state = "2", anc.state = "1")
+          cols = setNames(c("blue", "red"), c("1", "2"))
+          plot(tt, colors = cols, lwd = 4, split.vertical = T, ftype = "i")
+        }else{
+          b = order[original.labels == "2"]
+          c = order[original.labels == "3"]
+          tt<-paintBranches(original.dend, edge=sapply(b,match, original.dend$tip.label),
+          state = "2", anc.state = "1")
+          tt<-paintBranches(tt, edge = sapply(c,match, original.dend$tip.label),
+            state = "3")
+          cols = setNames(c("blue", "red", "green"), c("1", "2", "3"))
+          plot(tt, colors = cols, lwd = 0.65, split.vertical = T, ftype = "i")
+        }
       }
       }else{
        original.hc = get(hc.func)(dist(scale(quant_data)))
         original.dend = convert_to_phylo(original.hc)
+        
         name.row = paste0(hc.func)
         # adicionar F1 aki
         clusters = factor(cutree(original.hc, k = nlvls))
@@ -705,11 +778,32 @@ plot_all_trees = function(quant_data, cl.list, dist, nlvls = 2, factor){
           labs(title = paste0(hc.func,
         " cv score: ", round(score.original, 4), " \n F1:", round(F1, 4)))
         show(p1.original) 
+        
+       # original
+        order = original.dend$tip.label
+        original.labels = relab_y[as.numeric(order)]
+        if(nlvls == 2){
+          b = order[original.labels == "2"]
+          tt<-paintBranches(original.dend, edge = sapply(b, match, original.dend$tip.label),
+          state = "2", anc.state = "1")
+          cols = setNames(c("blue", "red"), c("1", "2"))
+          plot(tt, colors = cols, lwd = 4, split.vertical = T, ftype = "i")
+        }else{
+          b = order[original.labels == "2"]
+          c = order[original.labels == "3"]
+          tt<-paintBranches(original.dend, edge=sapply(b,match, original.dend$tip.label),
+          state = "2", anc.state = "1")
+          tt<-paintBranches(tt, edge = sapply(c,match, original.dend$tip.label),
+            state = "3")
+          cols = setNames(c("blue", "red", "green"), c("1", "2", "3"))
+          plot(tt, colors = cols, lwd = 0.65, split.vertical = T, ftype = "i")
+        }
       }
       }
 }
 
 plot_all_trees(sim.data[, -3], test.list, dist, factor = sim.data[, 3])
+
 ```
 ```{r}
 n = 280
@@ -765,7 +859,7 @@ plot_all_trees(ionosphere_components[, -13], test.list, dist, factor = ionospher
 glass.data = as.data.frame(read.table("https://archive.ics.uci.edu/ml/machine-learning-databases/glass/glass.data", sep = ","))
 glass.data = glass.data[, -1]
 glass.data$V11 = as.factor(glass.data$V11)
-plot_all_trees(glass.data[, -11], test.list, dist, factor = glass.data[, 11])
+plot_all_trees(glass.data[, -10], test.list, dist, factor = glass.data[, 10])
 ```
 \
 **Haberman´s survival**
@@ -782,8 +876,58 @@ wine.data = as.data.frame(read.table("https://archive.ics.uci.edu/ml/machine-lea
 wine.data$V1 = as.factor(wine.data$V1)
 plot_all_trees(wine.data[, -1], test.list, dist, factor = wine.data[, 1])
 ```
-
-
+\
+All three distances median cv:
+```{r}
+# excluding centroid
+test.list = list(hclust = c("ward.D", "single","ward.D2", "average", "complete", "mcquitty", "median"), agnes = c("weighted", "average", "ward"), diana = NA)
+dists = c("canberra", "euclidean", "manhattan")
+```
+```{r}
+cv_sim.test_2 = CV_display.superv_comp(sim.data, test.list, test_index = 3, dist = dists, 
+                                       scale = T, median = T)
+```
+```{r}
+flowers = iris
+cv_flowers.test = CV_display.superv_comp(flowers, test.list, test_index = 5, dist = dists,
+                                         scale = T, median = T)
+```
+```{r}
+tic("Running time for supervisioned comparisson in prima indians diabetes dataset")
+cv_prima_data.test = CV_display.superv_comp(prima_data, test.list, test_index = 9, dist = dists,
+                                         scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in wheat seeds dataset")
+cv_wheat_data.test = CV_display.superv_comp(wheat_data, test.list, test_index = 8, dist = dists,
+                                         scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in ionosphere dataset")
+cv_ionosphere_data.test = CV_display.superv_comp(ionosphere_components, test.list, test_index = 13, 
+                                           dist = dists, scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in glass dataset")
+cv_glass_data.test = CV_display.superv_comp(glass.data, test.list, test_index = 10, 
+                                           dist = dists, scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in glass dataset")
+cv_haberman_data.test = CV_display.superv_comp(haberman.data, test.list, test_index = 4, 
+                                           dist = dists, scale = T, median = T)
+toc()
+```
+```{r}
+tic("Running time for supervisioned comparisson in wine dataset")
+cv_wine_data.test = CV_display.superv_comp(wine.data, test.list, test_index = 1, 
+                                           dist = dists)
+toc()
+```
 
 
 
