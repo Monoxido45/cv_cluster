@@ -822,6 +822,7 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
   return(cross_val_results)
 }
 
+
 L_cross_val_per_var = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol = 1e-20, 
                                seed = 99, scale = F){
   list.names = names(cl.list)
@@ -978,5 +979,156 @@ L_cross_val_per_var = function(original_data, cl.list, dists = NA, mixed_dist = 
   }
 }
 
+# alternative version of L_cross_val_per_var
 
+L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol = 1e-20, 
+                               seed = 99, scale = F){
+  list.names = names(cl.list)
+  p = ncol(original_data)
+  l = length(list.names)
+  all_results = list()
+  types = sapply(original_data, class)
+  bool =  (types == "integer" | types == "numeric")
+  if(length(bool[bool != T]) == 0){
+    if(is.na(dists) == T | length(dists) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = dists
+    }
+  }else{
+    if(is.na(mixed_dist) == T | length(mixed_dist) == 1){
+      no_dists = T
+    }else{
+      no_dists = F
+      used.dists = mixed_dist
+    }
+  }
+  
+  for(k in (1:l)){
+    hc.func = list.names[k]
+    methods = cl.list[[hc.func]]
+    m = length(methods)
+    if(no_dists == T){
+      if(is.na(methods) == F){
+        for(c in (1:m)){
+          results = numeric(p)
+          types = sapply(original_data, class)
+          bool =  (types == "integer" | types == "numeric")
+          
+          # testando condições para ver se as variáveis sao mistas ou nao
+          if(length(bool[bool != T]) == 0){
+            if((is.na(dists) == F) & (length(dists) == 1)){
+              d = dist(scale(original_data), method = dists)
+            }else{
+              d = dist(scale(original_data))
+            }
+          }else{
+            if((is.na(mixed_dist) == F) & (length(mixed_dist) == 1)){
+              d = distmix(scale(original_data), method = mixed_dist)
+            }else{
+              d = distmix(scale(original_data))
+            }
+          }
+          clust = get(hc.func)(d, method = methods[c])
+          tree = convert_to_phylo(clust)
+          for(j in 1:p){
+            test_data = as.data.frame(original_data[, j])
+            colnames(test_data) = colnames(original_data)[j]
+            rownames(test_data) = rownames(original_data)
+            results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
+                                  silent = T, error=function(msg){
+                                    return(NA)
+                                  })
+          }
+          all_results[[paste0(hc.func, ".", methods[c])]] = results
+        }}else{
+          results = numeric(p)
+          types = sapply(original_data, class)
+          bool =  (types == "integer" | types == "numeric")
+          
+          
+          # testando condições para ver se as variáveis sao mistas ou nao
+          if(length(bool[bool != T]) == 0){
+            if((is.na(dists) == F) & (length(dists) == 1)){
+              d = dist(scale(original_data), method = dists)
+            }else{
+              d = dist(scale(original_data))
+            }
+          }else{
+            if(length(mixed_dist) == 1){
+              d = distmix(scale(original_data), method = mixed_dist)
+            }else{
+              d = distmix(scale(original_data))
+            }
+          }
+          
+          clust = get(hc.func)(d)
+          tree = convert_to_phylo(clust)
+          for(j in 1:p){
+            test_data = as.data.frame(original_data[, j])
+            colnames(test_data) = colnames(original_data)[j]
+            rownames(test_data) = rownames(original_data)
+            results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
+                                  silent = T, error=function(msg){
+                                    return(NA)
+                                  })
+          }
+          all_results[[hc.func]] = results
+        }
+    }else{
+      if(length(bool[bool != T]) == 0){
+        func = "dist"
+      }else{
+        func = "distmix"
+      }
+      dists.length = length(used.dists)
+      for(h in 1:dists.length){
+        if(is.na(methods) == F){
+          for(c in (1:m)){
+            results = numeric(p)
+            d = get(func)(scale(original_data), method = used.dists[h])
+            clust = get(hc.func)(d, method = methods[c])
+            tree = convert_to_phylo(clust)
+            for(j in 1:p){
+              test_data = as.data.frame(original_data[, j])
+              colnames(test_data) = colnames(original_data)[j]
+              rownames(test_data) = rownames(original_data)
+              results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
+                                    silent = T, error=function(msg){
+                                      return(NA)
+                                    })
+            }
+            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(results, 
+                                                                                    used.dists[h])
+          }}else{
+            results = numeric(p)
+            d = get(func)(scale(original_data), method = used.dists[h])
+            clust = get(hc.func)(d)
+            tree = convert_to_phylo(clust)
+            for(j in 1:p){
+              test_data = as.data.frame(original_data[, j])
+              colnames(test_data) = colnames(original_data)[j]
+              rownames(test_data) = rownames(original_data)
+              results[j] = tryCatch(L_score(tree, test_data, scale = scale),  
+                                    silent = T, error=function(msg){
+                                      return(NA)
+                                    })
+            }
+            all_results[[paste0(hc.func, ".", used.dists[h])]] = c(results, used.dists[h])
+          }
+      }
+    }
+  }
+  if(no_dists == F){
+    all_cvs = do.call(rbind, all_results)
+    cvs_data.frame = as.data.frame(all_cvs)
+    cvs_data.frame[, 1:p] <- sapply(cvs_data.frame, as.numeric)
+    return(cvs_data.frame)
+  }else{
+    all_cvs = do.call(rbind, all_results)
+    cvs_data.frame = as.data.frame(all_cvs)
+    return(cvs_data.frame)
+  }
+}
 
