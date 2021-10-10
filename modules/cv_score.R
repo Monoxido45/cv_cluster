@@ -9,7 +9,8 @@ library(phytools)
 library(mltools)
 library(data.table)
 library(factoextra)
-source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/convert_to_parenthesis.R")
+setwd("~/estatistica_UFSCAR/cv_cluster/modules")
+source("convert_to_parenthesis.R")
 library(foreach)
 library(doParallel)
 library(tictoc)
@@ -176,7 +177,7 @@ FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA, scale = F){
             types = sapply(training_data, class)
             bool =  (types == "integer" | types == "numeric")
             
-            # testando condições para ver se as variáveis sao mistas ou nao
+            # testando condi??es para ver se as vari?veis sao mistas ou nao
             if(length(bool[bool != T]) == 0){
               if((is.na(dists) == F) & (length(dists) == 1)){
                 d = dist(scale(training_data), method = dists)
@@ -215,7 +216,7 @@ FOM = function(data, nlvls, cl.list, dists = NA, mixed_dist = NA, scale = F){
             bool =  (types == "integer" | types == "numeric")
             
             
-            # testando condições para ver se as variáveis sao mistas ou nao
+            # testando condi??es para ver se as vari?veis sao mistas ou nao
             if(length(bool[bool != T]) == 0){
               if((is.na(dists) == F) & (length(dists) == 1)){
                 d = dist(scale(training_data), method = dists)
@@ -414,7 +415,7 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
             types = sapply(training_data, class)
             bool =  (types == "integer" | types == "numeric")
             
-            # testando condições para ver se as variáveis sao mistas ou nao
+            # testando condi??es para ver se as vari?veis sao mistas ou nao
             if(length(bool[bool != T]) == 0){
               if((is.na(dists) == F) & (length(dists) == 1)){
                 d = dist(scale(training_data), method = dists)
@@ -452,7 +453,7 @@ L_cross_val = function(original_data, cl.list, dists = NA, mixed_dist = NA, tol 
             bool =  (types == "integer" | types == "numeric")
             
             
-            # testando condições para ver se as variáveis sao mistas ou nao
+            # testando condi??es para ver se as vari?veis sao mistas ou nao
             if(length(bool[bool != T]) == 0){
               if((is.na(dists) == F) & (length(dists) == 1)){
                 d = dist(scale(training_data), method = dists)
@@ -703,7 +704,7 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
             types = sapply(training_data, class)
             bool =  (types == "integer" | types == "numeric")
             
-            # testando condições para ver se as variáveis sao mistas ou nao
+            # testando condi??es para ver se as vari?veis sao mistas ou nao
             if(length(bool[bool != T]) == 0){
               if((is.na(dists) == F) & (length(dists) == 1)){
                 d = dist(scale(training_data), method = dists)
@@ -736,7 +737,7 @@ supervised_comparing_L_cross_val = function(data, clust_list, test_index, dists 
             all_F1 = c(all_F1, F1_s)
         }
         }else{
-          # testando condições para ver se as variáveis sao mistas ou nao
+          # testando condi??es para ver se as vari?veis sao mistas ou nao
           if(length(bool[bool != T]) == 0){
             if((is.na(dists) == F) & (length(dists) == 1)){
               d = dist(scale(training_data), method = dists)
@@ -863,7 +864,7 @@ L_cross_val_per_var = function(original_data, cl.list, dists = NA, mixed_dist = 
             types = sapply(training_data, class)
             bool =  (types == "integer" | types == "numeric")
             
-            # testando condições para ver se as variáveis sao mistas ou nao
+            # testando condi??es para ver se as vari?veis sao mistas ou nao
             if(length(bool[bool != T]) == 0){
               if((is.na(dists) == F) & (length(dists) == 1)){
                 d = dist(scale(training_data), method = dists)
@@ -896,7 +897,7 @@ L_cross_val_per_var = function(original_data, cl.list, dists = NA, mixed_dist = 
             bool =  (types == "integer" | types == "numeric")
             
             
-            # testando condições para ver se as variáveis sao mistas ou nao
+            # testando condi??es para ver se as vari?veis sao mistas ou nao
             if(length(bool[bool != T]) == 0){
               if((is.na(dists) == F) & (length(dists) == 1)){
                 d = dist(scale(training_data), method = dists)
@@ -1016,7 +1017,7 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
           types = sapply(original_data, class)
           bool =  (types == "integer" | types == "numeric")
           
-          # testando condições para ver se as variáveis sao mistas ou nao
+          # testando condi??es para ver se as vari?veis sao mistas ou nao
           if(length(bool[bool != T]) == 0){
             if((is.na(dists) == F) & (length(dists) == 1)){
               d = dist(scale(original_data), method = dists)
@@ -1041,14 +1042,14 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                     return(NA)
                                   })
           }
-          all_results[[paste0(hc.func, ".", methods[c])]] = results
+          all_results[[paste0(hc.func, ".", methods[c])]] = 1 - (results/sum(results))
         }}else{
           results = numeric(p)
           types = sapply(original_data, class)
           bool =  (types == "integer" | types == "numeric")
           
           
-          # testando condições para ver se as variáveis sao mistas ou nao
+          # testando condi??es para ver se as vari?veis sao mistas ou nao
           if(length(bool[bool != T]) == 0){
             if((is.na(dists) == F) & (length(dists) == 1)){
               d = dist(scale(original_data), method = dists)
@@ -1074,7 +1075,7 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                     return(NA)
                                   })
           }
-          all_results[[hc.func]] = results
+          all_results[[hc.func]] = 1 - (results/sum(results))
         }
     }else{
       if(length(bool[bool != T]) == 0){
@@ -1099,7 +1100,7 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                       return(NA)
                                     })
             }
-            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(results, 
+            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(1 - results/sum(results), 
                                                                                     used.dists[h])
           }}else{
             results = numeric(p)
@@ -1115,7 +1116,7 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                       return(NA)
                                     })
             }
-            all_results[[paste0(hc.func, ".", used.dists[h])]] = c(results, used.dists[h])
+            all_results[[paste0(hc.func, ".", used.dists[h])]] = c(1 - results/sum(results), used.dists[h])
           }
       }
     }
