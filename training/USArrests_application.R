@@ -7,8 +7,9 @@ library(phytools)
 library(mltools)
 library(data.table)
 library(factoextra)
-source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/convert_to_parenthesis.R")
-source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/cv_score.R")
+setwd("~/estatistica_UFSCAR/cv_cluster/modules")
+source("convert_to_parenthesis.R")
+source("cv_score.R")
 library(tictoc)
 library(mvMORPH)
 library(RColorBrewer)
@@ -106,7 +107,7 @@ library(ggcorrplot)
 ggcorrplot(cor(arr.data), hc.order = TRUE, type = "lower",
            outline.col = "white", lab = T) +
   ggsave(filename  = "corr_usa_arrests.pdf",
-path = "C:/Users/lucru/Estatística_UFSCar/cv_cluster/figures",
+path = "C:/Users/lucru/Estat?stica_UFSCar/cv_cluster/figures",
 width = 20.75, height = 12.5, units = "cm")
 
 
@@ -135,7 +136,7 @@ p1
 
 # adding and testing wheat seeds dataset
 # wheat seeds dataset
-wheat_data = read.delim("C:/Users/lucru/Estatística_UFSCar/cv_cluster/data/seeds_dataset.txt",
+wheat_data = read.delim("data/seeds_dataset.txt",
                         header = F)
 wheat_data$V8 = as.factor(wheat_data$V8)
 head(wheat_data)
@@ -247,13 +248,13 @@ p2 = ggplot_data %>%
         plot.title = element_text(hjust = 0.5))
 p2 + 
   ggsave(filename  = "simulated_dataset_importances.pdf",
-         path = "C:/Users/lucru/Estatística_UFSCar/cv_cluster/figures",
+         path = "C:/Users/lucru/Estat?stica_UFSCar/cv_cluster/figures",
          width = 20.75, height = 14.5, units = "cm")
 
 library(ggpubr)
 ggarrange(p1, p2, common.legend = T, nrow = 2, legend = "right")+
   ggsave(filename  = "wheat_seeds_simulated_importances_v2.pdf",
-         path = "C:/Users/lucru/Estatística_UFSCar/cv_cluster/figures",
+         path = "C:/Users/lucru/Estat?stica_UFSCar/cv_cluster/figures",
          width = 22.75, height = 14.5, units = "cm")
 
 # clustering by ward.D2 in wheat seeds
@@ -284,7 +285,7 @@ ggplot_data %>%
         plot.title = element_text(hjust = 0.5))+
   scale_fill_brewer(palette = "Set1") +
   ggsave(filename = "boxplots_vars_clust_wheat_seeds.pdf",
-         path = "C:/Users/lucru/Estatística_UFSCar/cv_cluster/figures", 
+         path = "C:/Users/lucru/Estat?stica_UFSCar/cv_cluster/figures", 
          width = 20.75, height = 12.5, units = "cm")
 
 
@@ -403,7 +404,7 @@ plot(obj,fsize=c(0.5,0.9),outline=FALSE, lwd = c(2,5), leg.txt="X2", ftype = "of
 
 
 # toy example for ceramic samples data set
-ceramic_data = read.csv("C:/Users/lucru/Estatística_UFSCar/cv_cluster/data/Chemical Composion of Ceramic.csv")
+ceramic_data = read.csv("/home/kuben/estatistica_UFSCAR/cv_cluster/data/Chemical Composion of Ceramic.csv")
 head(ceramic_data)
 
 # ignoring ceramic name and only using the binary categorical variable
@@ -411,13 +412,26 @@ ceramic_data %<>%
   dplyr::select(-(Ceramic.Name)) %>%
   mutate(Part = as.factor(Part))
 
-# computing scores only for ward.d2 method
-test.list = list(hclust = c("ward.D2"))
+# test list with only euclidean
+test.list = list(hclust = c("single","ward.D2", "ward.D", "complete", "mcquitty", 
+                            "average"), 
+                 diana = NA)
+dists = c("euclidean")
+tol = 1e-20
+
+# computing scores:
+ceramic_L_croos_val = L_cross_val(ceramic_data[, -1], cl.list = test.list, dists = dists,
+            tol = tol, seed = 99, scale =  T)
+
+
+
+# computing scores only for ward.D2 linkage
+test.list = list(hclust = c("mcquitty"))
 dists = c("euclidean")
 
 # wheat seeds dataset
-ceramic.l_cross_per_var = L_cross_val_per_var_alt(ceramic_data[, -1], test.list, dists, scale = T)
-
+ceramic.l_cross_per_var = L_cross_val_per_var_alt(ceramic_data[, -1], test.list, 
+                                                dists, scale = T)
 
 ggplot_data = reshape2::melt(ceramic.l_cross_per_var)
 ggplot_data$variable = as.factor(colnames(ceramic_data[, -1]))
@@ -434,32 +448,33 @@ p1 = ggplot_data %>%
                             family ="serif"),
         plot.title = element_text(hjust = 0.5)) +
   ylim(0.75, max(ggplot_data$value) + 0.05)
-p1 +
-  ggsave(filename = "importances_ceramic_samples_data.pdf",
-         path = "C:/Users/lucru/Estatística_UFSCar/cv_cluster/figures", 
+
+ggsave(p1, filename = "importances_ceramic_samples_data.pdf",
+         path = "/home/kuben/estatistica_UFSCAR/cv_cluster/figures", 
          width = 18.75, height = 12.5, units = "cm")
 
 # plotting the best and worst variables according to importance
 # ward.D2 linkage
-ceramic_ward_dend = hclust(dist(scale(ceramic_data[, -1]), method = "euclidean"), method = "ward.D2")
+ceramic_mcquitty_dend = hclust(dist(scale(ceramic_data[, -1]), 
+                            method = "euclidean"), method = "mcquitty")
 
 # converting to tree
-ward_ceramic.tree = convert_to_phylo(ceramic_ward_dend)
+mcquitty_ceramic.tree = convert_to_phylo(ceramic_mcquitty_dend)
 
 # dendrogram for V1
 par(mfrow = c(1,2))
 x = setNames(ceramic_data$Al2O3,gsub(" ", "", rownames(ceramic_data)))
-reordered_x = x[ward_ceramic.tree$tip.label]
+reordered_x = x[mcquitty_ceramic.tree$tip.label]
 
-obj = contMap(ward_ceramic.tree, reordered_x, plot=FALSE)
+obj = contMap(mcquitty_ceramic.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
 plot(obj,fsize=c(0.5,0.9),outline=FALSE, lwd = c(2,5), leg.txt = "Al203", ftype = "off")
 
 # dendrogram for V2
 x = setNames(ceramic_data$MgO,gsub(" ", "", rownames(ceramic_data)))
-reordered_x = x[ward_ceramic.tree$tip.label]
+reordered_x = x[mcquitty_ceramic.tree$tip.label]
 
-obj = contMap(ward_ceramic.tree, reordered_x, plot=FALSE)
+obj = contMap(mcquitty_ceramic.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
 plot(obj,fsize=c(0.5,0.9),outline=FALSE, lwd = c(2,5), leg.txt = "MgO", ftype = "off")
 
