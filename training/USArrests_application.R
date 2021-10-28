@@ -46,7 +46,7 @@ plot(arr_dend)
 mcquitty.tree = convert_to_phylo(arr_dend)
 
 # dendrogram for murder
-par(mfrow = c(2,2))
+par(mfrow = c(1,2))
 x = setNames(scale(arr.data[,1]),gsub(" ", "", rownames(USArrests)))
 reordered_x = x[mcquitty.tree$tip.label]
 
@@ -441,17 +441,16 @@ p1 = ggplot_data %>%
   geom_line() +
   geom_point() +
   theme_minimal() +
-  labs(x = "Variables names",
-       y = "Cross validated score values",
-       title = "Ceramic samples dataset") +
-  theme(text = element_text(size = 11, 
+  labs(x = "Features",
+       y = "Cross validated score values") +
+  theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5)) +
-  ylim(0.75, max(ggplot_data$value) + 0.05)
+  ylim(min(ggplot_data$value) - 0.05, max(ggplot_data$value) + 0.05)
 
 ggsave(p1, filename = "importances_ceramic_samples_data.pdf",
          path = "/home/kuben/estatistica_UFSCAR/cv_cluster/figures", 
-         width = 18.75, height = 12.5, units = "cm")
+         width = 20.75, height = 10.5, units = "cm")
 
 # plotting the best and worst variables according to importance
 # ward.D2 linkage
