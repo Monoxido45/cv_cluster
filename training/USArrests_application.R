@@ -52,7 +52,7 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd=c(3,7),leg.txt="Murder")
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Murder")
 
 # dendrogram for assault
 x = setNames(scale(arr.data[,2]),gsub(" ", "", rownames(USArrests)))
@@ -60,7 +60,7 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd=c(3,7),leg.txt="Assault")
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Assault")
 
 # dendrogram for Urbanpop
 x = setNames(scale(arr.data[,3]),gsub(" ", "", rownames(USArrests)))
@@ -68,7 +68,7 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd=c(3,7),leg.txt="Urbanpop")
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Urbanpop")
 
 # dendrogram for rape
 x = setNames(scale(arr.data[,4]),gsub(" ", "", rownames(USArrests)))
@@ -76,7 +76,7 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd=c(3,7),leg.txt="Rape")
+plot(obj,fsize=c(0.6, 0.8),outline=FALSE,lwd=c(3,7),leg.txt="Rape")
 
 # importance by variable
 test.list = list(hclust = c("mcquitty"))
