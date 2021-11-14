@@ -114,7 +114,7 @@ arr_data %<>%
 
 
 melted_data = arr_data %>%
-  pivot_longer(Murder:Rape, names_to = "variable", values_to = "values") %>%
+  pivot_longer(Murder, names_to = "variable", values_to = "values") %>%
   pivot_longer("k = 2":"k = 4", names_to = "k", values_to = "cluster")
 
 
@@ -122,7 +122,7 @@ melted_data %>%
   ggplot(aes(y = variable, x = values, fill = cluster)) +
   geom_boxplot() +
   theme_bw() +
-  labs(x = "Standardized values",
+  labs(x = "Standardized values for murder",
        y = "Variables",
        fill = "Cluster") +
   theme(text = element_text(size = 11, 
@@ -131,49 +131,74 @@ melted_data %>%
   scale_fill_brewer(palette = "Set1")+
   facet_wrap(~k)
 
-p1 = ggplot_data %>%
-  ggplot(aes(y = variable, x = value, fill = clust_2)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(x = "Values",
-       y = "Variables",
-       fill = "Cluster",
-       title = "k = 2") +
-  theme(text = element_text(size = 11, 
+mcquitty.tree = convert_to_phylo(arr_dend)
+x = setNames(scale(arr_data[,1]),gsub(" ", "", rownames(USArrests)))
+reordered_x = x[mcquitty.tree$tip.label]
+
+obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
+obj = setMap(obj,invert=TRUE)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Murder", legend = FALSE)
+
+# comparing our importance score to random forest importance
+# using wheat seed dataset
+# in two different situations concerning clustering
+# importing wheat seeds again
+setwd("~/estatistica_UFSCAR/cv_cluster")
+wheat_data = read.delim("data/seeds_dataset.txt",
+                        header = F)
+wheat_data$V8 = as.factor(wheat_data$V8)
+head(wheat_data)
+
+# obtaining dendrogram
+wheat_dend = wheat_data %>%
+  dplyr::select(-V8) %>%
+  scale() %>%
+  dist() %>%
+  hclust(method = "ward.D2")
+
+# good partition and bad partition
+wheat_data %<>%
+  mutate(clust3 = as.factor(cutree(wheat_dend, k = 3)),
+         clust6 = as.factor(cutree(wheat_dend, k = 6)))
+# applying random forest
+rf_clust_3 = ranger::ranger(formula = clust3 ~ . - clust6 - V8,
+                            data = wheat_data,
+                            num.trees = 500,
+                            importance = "impurity",
+                            write.forest = TRUE,
+                            verbose = FALSE,
+                            probability = T)
+
+rf_clust_6 = ranger::ranger(formula = clust6 ~ . - clust3 - V8,
+                           data = wheat_data,
+                           num.trees = 500,
+                           importance = "impurity",
+                           write.forest = TRUE,
+                           verbose = FALSE,
+                           probability = T)
+
+import = tibble(variable = c(names(ranger::importance(rf_clust_3)), 
+                    names(ranger::importance(rf_clust_6))),
+        importance = c(ranger::importance(rf_clust_3),
+                       ranger::importance(rf_clust_6))) %>%
+  mutate(cluster = as.factor(rep(c("k = 3", "k = 6"), each = dim(wheat_data)[2] - 3))) %>%
+  arrange(desc(importance))
+
+
+import %>%
+  ggplot(aes(x = reorder(variable, importance),
+             y = importance, fill = importance))+
+  geom_bar(stat = "identity", position = "dodge") + coord_flip()+
+  labs(y = "Importância de variável",
+       x = "",
+       title = "RF importances",
+       fill = "Importance")+
+  theme_bw()+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+        text = element_text(size = 12,
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))+
-  scale_fill_brewer(palette = "Set1")
+  scale_fill_gradient(low = "firebrick2", high = "dodgerblue3")+
+  facet_wrap(~cluster)
 
-p1
-p2 = ggplot_data %>%
-  ggplot(aes(y = variable, x = value, fill = clust_3)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(x = "Values",
-       y = "Variables",
-       fill = "Cluster",
-       title = "k = 3") +
-  theme(text = element_text(size = 11, 
-                            family ="serif"),
-        plot.title = element_text(hjust = 0.5))+
-  scale_fill_brewer(palette = "Set1")
-p2
-
-p3 = ggplot_data %>%
-  ggplot(aes(y = variable, x = value, fill = clust_4)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(x = "Values",
-       y = "Variables",
-       fill = "Cluster",
-       title = "k = 4") +
-  theme(text = element_text(size = 11, 
-                            family ="serif"),
-        plot.title = element_text(hjust = 0.5))+
-  scale_fill_brewer(palette = "Set1")
-
-p3
-
-library(ggpubr)
-ggarrange(p1, p2, p3, nrow = 1, ncol = 3, common.legend = T)
 
