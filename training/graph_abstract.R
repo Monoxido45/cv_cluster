@@ -201,4 +201,45 @@ import %>%
   scale_fill_gradient(low = "firebrick2", high = "dodgerblue3")+
   facet_wrap(~cluster)
 
+# making boxplot to visualize the partitions:
+dados_quant = wheat_data %>%
+  dplyr::select(where(is.numeric)) %>%
+  scale() %>% as_tibble()
+ggplot_data = reshape2::melt(dados_quant)
+
+# boxplot separating by ward.d2
+ggplot_data$factor = rep(wheat_data$clust3, 7)
+ggplot_data %>%
+  ggplot(aes(y = variable, x = value, fill = factor)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(x = "Values",
+       y = "Variables",
+       fill = "Cluster",
+       title = "Separation for wheat seeds") +
+  theme(text = element_text(size = 11, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5))
+
+
+# plotting evolutionary dendrogram only for V6 and V4
+# dendrogram for V1
+ward.tree = wheat_dend %>% convert_to_phylo()
+par(mfrow = c(1,2))
+x = round(setNames(dados_quant$V4,gsub(" ", "", rownames(dados_quant))), 2)
+reordered_x = x[ward.tree$tip.label]
+
+obj = contMap(ward.tree, reordered_x, plot=FALSE)
+obj = setMap(obj,invert=TRUE)
+plot(obj,fsize=c(0.4,0.6),outline=FALSE,lwd = c(2,5), leg.txt="V4", ftype = "off")
+
+# dendrogram for V2
+x = round(setNames(dados_quant$V6, gsub(" ", "", rownames(dados_quant))), 2)
+reordered_x = x[ward.tree$tip.label]
+
+obj = contMap(ward.tree, reordered_x, plot=FALSE)
+obj = setMap(obj,invert=TRUE)
+plot(obj,fsize=c(0.4,0.6),outline=FALSE,lwd = c(2,5), leg.txt="V6", ftype = "off")
+
+
 
