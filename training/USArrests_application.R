@@ -39,8 +39,6 @@ scores_arr %<>% mutate(names = row.names(scores_arr))
 scores_arr %>% arrange(V1) %>% head(8)
 
 arr_dend = hclust(dist(scale(USArrests), method = "manhattan"), method = "mcquitty")
-plot(arr_dend)
-
 
 # selecting the best 
 mcquitty.tree = convert_to_phylo(arr_dend)
@@ -52,6 +50,8 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Murder")
 
 # dendrogram for assault
@@ -60,6 +60,8 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Assault")
 
 # dendrogram for Urbanpop
@@ -68,6 +70,8 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Urbanpop")
 
 # dendrogram for rape
@@ -76,6 +80,8 @@ reordered_x = x[mcquitty.tree$tip.label]
 
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.6, 0.8),outline=FALSE,lwd=c(3,7),leg.txt="Rape")
 
 # importance by variable
@@ -467,6 +473,8 @@ reordered_x = x[mcquitty_ceramic.tree$tip.label]
 
 obj = contMap(mcquitty_ceramic.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.5,0.9),outline=FALSE, lwd = c(2,5), leg.txt = "Al203", ftype = "off")
 
 # dendrogram for V2
@@ -475,6 +483,8 @@ reordered_x = x[mcquitty_ceramic.tree$tip.label]
 
 obj = contMap(mcquitty_ceramic.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.5,0.9),outline=FALSE, lwd = c(2,5), leg.txt = "MgO", ftype = "off")
 
 

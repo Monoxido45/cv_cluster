@@ -20,12 +20,12 @@ library(clValid)
 # making simulated dataset for graphical abstract
 # simulating dataset from multivariate normal
 # according to a latent variable with 3 levels
-set.seed(125)
+set.seed(1275)
 n = 15
 y = sample(c(1, 2, 3), size = n, replace = TRUE, prob = c(1/3, 1/3, 1/3))
 mu_1 = c(1, 1, 1, 3)
-mu_2 = c(4, 4, 1, 3)
-mu_3 = c(-2, -1, 2, 2)
+mu_2 = c(4, -2, 1, 3)
+mu_3 = c(-2, -2, 1, 3)
 S = rbind(c(1, 0.5, 0.15, 0.15), c(0.5, 1, 0.15, 0.15), 
           c(0.15, 0.15, 1, 0.5), c(0.15, 0.15, 0.5, 1))
 X = ((y == 1)*(mvrnorm(15, mu_1, S)) + (y == 2)*(mvrnorm(15, mu_2, S)) +
@@ -63,9 +63,9 @@ dists = c("euclidean")
 import_x = L_cross_val_per_var_alt(X, test.list, 
                         dists, scale = T)
 
-ggplot_data = reshape2::melt(import_x)
-ggplot_data$variable = as.factor(colnames(X))
-p1 = ggplot_data %>%
+melted_sim = reshape2::melt(import_x)
+melted_sim$variable = as.factor(colnames(X))
+p1 = melted_sim %>%
   mutate(variable = fct_reorder(variable, value, .desc = T)) %>%
   ggplot(aes(x = variable, y  = value, group = 1)) +
   geom_line() +
@@ -76,7 +76,7 @@ p1 = ggplot_data %>%
   theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5)) +
-  ylim(min(ggplot_data$value) - 0.05, max(ggplot_data$value) + 0.05)
+  ylim(min(melted_sim$value) - 0.05, max(melted_sim$value) + 0.05)
 
 p1
 
@@ -88,9 +88,11 @@ par(mfrow = c(1, 2))
 x = setNames(X$X2,gsub(" ", "", rownames(X)))
 reordered_x = x[mcquitty_tree$tip.label]
 
-obj = contMap(mcquitty_tree, reordered_x, plot=FALSE)
+obj = contMap(mcquitty_tree, reordered_x, plot=FALSE, cols =  viridis::viridis(15))
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize= 0.7,outline=FALSE, lwd = c(2,5), leg.txt = "X2")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize= 0.5,outline=FALSE, lwd = c(2,5), leg.txt = "X2")
 
 # X1 now
 x = setNames(X$X1,gsub(" ", "", row.names(X)))
@@ -98,8 +100,9 @@ reordered_x = x[mcquitty_tree$tip.label]
 
 obj = contMap(mcquitty_tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize= 0.7,outline=FALSE, lwd = c(2,5), leg.txt = "X1")
-
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize= 0.5,outline=FALSE, lwd = c(2,5), leg.txt = "X1")
 
 # generating boxplots for USArrest according to dendrogram partitions
 arr_dend = hclust(dist(scale(USArrests), method = "manhattan"), method = "mcquitty")
@@ -122,10 +125,10 @@ melted_data %>%
   ggplot(aes(y = variable, x = values, fill = cluster)) +
   geom_boxplot() +
   theme_bw() +
-  labs(x = "Standardized values for murder",
-       y = "Variables",
+  labs(x = "Standardized values",
+       y = "",
        fill = "Cluster") +
-  theme(text = element_text(size = 11, 
+  theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))+
   scale_fill_brewer(palette = "Set1")+
@@ -186,16 +189,15 @@ import = tibble(variable = c(names(ranger::importance(rf_clust_3)),
 
 
 import %>%
-  ggplot(aes(x = reorder(variable, importance),
-             y = importance, fill = importance))+
-  geom_bar(stat = "identity", position = "dodge") + coord_flip()+
-  labs(y = "Importância de variável",
-       x = "",
-       title = "RF importances",
-       fill = "Importance")+
+  ggplot(aes(x = variable,
+             y = importance))+
+  geom_bar(stat = "identity", position = "dodge", fill = "dodgerblue3") + 
+  coord_flip()+
+  labs(y = "Importance score",
+       x = "")+
   theme_bw()+
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        text = element_text(size = 12,
+        text = element_text(size = 15,
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))+
   scale_fill_gradient(low = "firebrick2", high = "dodgerblue3")+
@@ -214,7 +216,7 @@ ggplot_data %>%
   geom_boxplot() +
   theme_minimal() +
   labs(x = "Values",
-       y = "Variables",
+       y = "",
        fill = "Cluster",
        title = "Separation for wheat seeds") +
   theme(text = element_text(size = 11, 
@@ -242,4 +244,23 @@ obj = setMap(obj,invert=TRUE)
 plot(obj,fsize=c(0.4,0.6),outline=FALSE,lwd = c(2,5), leg.txt="V6", ftype = "off")
 
 
+test.list = list(hclust = c("ward.D2"))
+dists = c("euclidean")
+import_x = L_cross_val_per_var_alt(dados_quant, test.list, 
+                                   dists, scale = T)
 
+
+ggplot_data = reshape2::melt(import_x)
+ggplot_data$variable = as.factor(colnames(X))
+p1 = ggplot_data %>%
+  mutate(variable = fct_reorder(variable, value, .desc = T)) %>%
+  ggplot(aes(x = variable, y  = value, group = 1)) +
+  geom_bar(stat = "identity", position = "dodge", fill = "dodgerblue3")+
+  theme_minimal() +
+  labs(x = "Features",
+       y = "Importance score") +
+  coord_flip()+
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5))
+p1
