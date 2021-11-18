@@ -265,7 +265,8 @@ ggarrange(p1, p2, common.legend = T, nrow = 2, legend = "right")+
 
 # clustering by ward.D2 in wheat seeds
 wheat_data_temp = wheat_data[,-8]
-wheat_dend = hclust(dist(scale(wheat_data_temp), method = "euclidean"), method = "ward.D2")
+wheat_dend = hclust(dist(scale(wheat_data_temp), method = "euclidean"),
+                    method = "ward.D2")
 
 wheat_data_temp %<>%
   scale() %<>%

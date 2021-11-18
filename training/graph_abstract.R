@@ -81,6 +81,7 @@ p1 = melted_sim %>%
 p1
 
 
+
 # evolutionary dendrograms for these two cases:
 par(mfrow = c(1, 2))
 
@@ -264,3 +265,4 @@ p1 = ggplot_data %>%
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))
 p1
+
