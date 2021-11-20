@@ -308,7 +308,9 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd = c(2,5), leg.txt="V1", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd = c(2,5), leg.txt="V1", ftype = "off")
 
 # dendrogram for V2
 x = round(setNames(wheat_data_temp[,2], gsub(" ", "", rownames(wheat_data_temp))), 2)
@@ -316,7 +318,9 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd = c(2,5), leg.txt="V2", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd = c(2,5), leg.txt="V2", ftype = "off")
 
 # dendrogram for V3
 x = round(setNames(wheat_data_temp[,3], gsub(" ", "", rownames(wheat_data_temp))), 2)
@@ -324,7 +328,9 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd = c(2,5), leg.txt="V3", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd = c(2,5), leg.txt="V3", ftype = "off")
 
 # dendrogram for V4
 x = round(setNames(wheat_data_temp[,4], gsub(" ", "", rownames(wheat_data_temp))), 2)
@@ -332,7 +338,9 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd = c(2,5), leg.txt="V4", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd = c(2,5), leg.txt="V4", ftype = "off")
 
 # dendrogram for V5
 x = round(setNames(wheat_data_temp[,5], gsub(" ", "", rownames(wheat_data_temp))), 2)
@@ -340,7 +348,9 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd = c(2,5), leg.txt="V5", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd = c(2,5), leg.txt="V5", ftype = "off")
 
 
 # dendrogram for V6
@@ -349,7 +359,9 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd = c(2,5), leg.txt="V6", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd = c(2,5), leg.txt="V6", ftype = "off")
 
 # dendrogram for V7
 x = round(setNames(wheat_data_temp[,7], gsub(" ", "", rownames(wheat_data_temp))), 2)
@@ -357,7 +369,9 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1),outline=FALSE,lwd = c(2,5), leg.txt="V7", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd = c(2,5), leg.txt="V7", ftype = "off")
 
 
 # selecting two combinations and analysing colored dendrogram for simulated dataset
@@ -491,7 +505,7 @@ plot(obj,fsize=c(0.5,0.9),outline=FALSE, lwd = c(2,5), leg.txt = "MgO", ftype = 
 
 # adding the phylogenetic simulated example
 # simulating tree
-set.seed(1234)
+set.seed(1235)
 sim_tree = rtree(n = 24, tip.label = letters[1:24])
 plotTree(sim_tree)
 
@@ -519,6 +533,8 @@ cont_states = rTraitCont(sim_tree, sigma = 2)
 
 
 obj<-contMap(sim_tree, cont_states, plot=FALSE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,lwd=7)
 
 # plotting iris clustering:

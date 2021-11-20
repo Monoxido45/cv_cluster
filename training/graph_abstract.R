@@ -138,9 +138,10 @@ melted_data %>%
 mcquitty.tree = convert_to_phylo(arr_dend)
 x = setNames(scale(arr_data[,1]),gsub(" ", "", rownames(USArrests)))
 reordered_x = x[mcquitty.tree$tip.label]
-
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Murder", legend = FALSE)
 
 # comparing our importance score to random forest importance
@@ -164,6 +165,10 @@ wheat_dend = wheat_data %>%
 wheat_data %<>%
   mutate(clust3 = as.factor(cutree(wheat_dend, k = 3)),
          clust6 = as.factor(cutree(wheat_dend, k = 6)))
+
+
+
+
 # applying random forest
 rf_clust_3 = ranger::ranger(formula = clust3 ~ . - clust6 - V8,
                             data = wheat_data,
@@ -174,19 +179,35 @@ rf_clust_3 = ranger::ranger(formula = clust3 ~ . - clust6 - V8,
                             probability = T)
 
 rf_clust_6 = ranger::ranger(formula = clust6 ~ . - clust3 - V8,
-                           data = wheat_data,
-                           num.trees = 500,
-                           importance = "impurity",
-                           write.forest = TRUE,
-                           verbose = FALSE,
-                           probability = T)
+                            data = wheat_data,
+                            num.trees = 500,
+                            importance = "impurity",
+                            write.forest = TRUE,
+                            verbose = FALSE,
+                            probability = T)
+
+
+test.list = list(hclust = c("ward.D2"))
+dists = c("euclidean")
+import_x = L_cross_val_per_var_alt(dados_quant, test.list, 
+                                   dists, scale = T)
+
+hcpl_import = import_x %>% reshape2::melt()
+
+hcpl_import = setNames(hcpl_import$value, hcpl_import$variable)
+
+ggplot_data = reshape2::melt(import_x)
+ggplot_data$variable = as.factor(colnames(X))
+
 
 import = tibble(variable = c(names(ranger::importance(rf_clust_3)), 
-                    names(ranger::importance(rf_clust_6))),
-        importance = c(ranger::importance(rf_clust_3),
-                       ranger::importance(rf_clust_6))) %>%
-  mutate(cluster = as.factor(rep(c("k = 3", "k = 6"), each = dim(wheat_data)[2] - 3))) %>%
-  arrange(desc(importance))
+                             names(ranger::importance(rf_clust_6)),
+                             names(hcpl_import)),
+importance = c(ranger::importance(rf_clust_3),
+               ranger::importance(rf_clust_6), 
+               hcpl_import)) %>%
+  mutate(cluster = as.factor(rep(c("RF k = 3", "RF k = 6", "Our score"),
+                                 each = dim(wheat_data)[2] - 3)))
 
 
 import %>%
@@ -201,32 +222,12 @@ import %>%
         text = element_text(size = 15,
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))+
-  scale_fill_gradient(low = "firebrick2", high = "dodgerblue3")+
-  facet_wrap(~cluster)
+  facet_wrap(~cluster, scales = "free_x")
 
-# making boxplot to visualize the partitions:
-dados_quant = wheat_data %>%
-  dplyr::select(where(is.numeric)) %>%
-  scale() %>% as_tibble()
-ggplot_data = reshape2::melt(dados_quant)
-
-# boxplot separating by ward.d2
-ggplot_data$factor = rep(wheat_data$clust3, 7)
-ggplot_data %>%
-  ggplot(aes(y = variable, x = value, fill = factor)) +
-  geom_boxplot() +
-  theme_minimal() +
-  labs(x = "Values",
-       y = "",
-       fill = "Cluster",
-       title = "Separation for wheat seeds") +
-  theme(text = element_text(size = 11, 
-                            family ="serif"),
-        plot.title = element_text(hjust = 0.5))
 
 
 # plotting evolutionary dendrogram only for V6 and V4
-# dendrogram for V1
+# dendrogram for V6
 ward.tree = wheat_dend %>% convert_to_phylo()
 par(mfrow = c(1,2))
 x = round(setNames(dados_quant$V4,gsub(" ", "", rownames(dados_quant))), 2)
@@ -234,14 +235,18 @@ reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.4,0.6),outline=FALSE,lwd = c(2,5), leg.txt="V4", ftype = "off")
 
-# dendrogram for V2
+# dendrogram for V4
 x = round(setNames(dados_quant$V6, gsub(" ", "", rownames(dados_quant))), 2)
 reordered_x = x[ward.tree$tip.label]
 
 obj = contMap(ward.tree, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.4,0.6),outline=FALSE,lwd = c(2,5), leg.txt="V6", ftype = "off")
 
 

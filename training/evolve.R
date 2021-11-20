@@ -2,7 +2,7 @@
 set.seed(2075)
 d <- 6
 k <- 8
-cov_stab <- seq(from = 0.5, to = 1.5, length.out = 6)
+cov_stab <- 2^seq(from = -2, to = 3, length.out = d)
 evolve <- function(obs, time) 
   obs + rnorm(d, 0, cov_stab^time)
 
@@ -20,6 +20,9 @@ for(time in 1:(k-1))
     param[[time + 1]][jj + n_param_ant,] = mut_2
   }
 }
+
+sim_data <- cbind(param[[k]], runif(2^(k-1), 0, 1)) %>%
+  as.data.frame()
 
 
 # importing packages
@@ -40,9 +43,6 @@ library(RColorBrewer)
 library(MASS)
 library(plyr)
 library(clValid)
-
-sim_data = param[[k]] %>%
-  as.data.frame()
 
 test.list = list(hclust = c("ward.D2"))
 dists = c("euclidean")
@@ -74,18 +74,18 @@ dend_ward = sim_data %>%
 
 
 sim_data %<>%
-  mutate(clust3 = as.factor(cutree(dend_ward, k = 3)),
-         clust6 = as.factor(cutree(dend_ward, k = 6)))
+  mutate(clust3 = as.factor(cutree(dend_ward, k = 2)))
 
-rf_clust_3 = ranger::ranger(formula = clust3 ~ . - clust6,
-                            data = sim_data,
-                            num.trees = 500,
-                            importance = "impurity",
-                            write.forest = TRUE,
-                            verbose = FALSE,
-                            probability = T)
 
-rf_clust_6 = ranger::ranger(formula = clust6 ~ . - clust3,
+nb = NbClust::NbClust(sim_data[, -c(7)], distance = "euclidean",
+                      min.nc = 1, max.nc = 20, method = "ward.D2")
+factoextra::fviz_nbclust(nb) +
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5))
+
+
+rf_clust_3 = ranger::ranger(formula = clust3 ~ .,
                             data = sim_data,
                             num.trees = 500,
                             importance = "impurity",
@@ -94,11 +94,10 @@ rf_clust_6 = ranger::ranger(formula = clust6 ~ . - clust3,
                             probability = T)
 
 import = tibble(variable = c(names(ranger::importance(rf_clust_3)), 
-                             names(ranger::importance(rf_clust_6))),
+                             names(ranger::importance(rf_clust_3))),
                 importance = c(ranger::importance(rf_clust_3),
-                               ranger::importance(rf_clust_6))) %>%
-  mutate(cluster = as.factor(rep(c("k = 3", "k = 6"), each = dim(sim_data)[2] - 2))) %>%
-  arrange(desc(importance))
+                               melted_sim$value)) %>%
+  mutate(cluster = as.factor(rep(c("RF k = 3", "Our Score"), each = dim(sim_data)[2] - 1)))
 
 import %>%
   ggplot(aes(x = variable,
@@ -113,16 +112,19 @@ import %>%
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))+
   scale_fill_gradient(low = "firebrick2", high = "dodgerblue3")+
-  facet_wrap(~cluster)
+  facet_wrap(~cluster, scales = "free_x")
 
 dend_ward %<>% convert_to_phylo()
-par(mfrow= c(2, 3))
+
+par(mfrow= c(2, 4))
 x = setNames(round(sim_data[, 1], 2), gsub(" ", "", rownames(sim_data)))
 reordered_x = x[dend_ward$tip.label]
 
 obj = contMap(dend_ward, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1), outline=FALSE, lwd = c(2,5), leg.txt="X1", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X1", ftype = "off")
 
 
 x = setNames(round(sim_data[, 2], 2), gsub(" ", "", rownames(sim_data)))
@@ -130,7 +132,9 @@ reordered_x = x[dend_ward$tip.label]
 
 obj = contMap(dend_ward, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1), outline=FALSE, lwd = c(2,5), leg.txt="X2", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X2", ftype = "off")
 
 
 x = setNames(round(sim_data[, 3], 2), gsub(" ", "", rownames(sim_data)))
@@ -138,7 +142,9 @@ reordered_x = x[dend_ward$tip.label]
 
 obj = contMap(dend_ward, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1), outline=FALSE, lwd = c(2,5), leg.txt="X3", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X3", ftype = "off")
 
 
 x = setNames(round(sim_data[, 4], 2), gsub(" ", "", rownames(sim_data)))
@@ -146,14 +152,18 @@ reordered_x = x[dend_ward$tip.label]
 
 obj = contMap(dend_ward, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1), outline=FALSE, lwd = c(2,5), leg.txt="X4", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X4", ftype = "off")
 
 x = setNames(round(sim_data[, 5], 2), gsub(" ", "", rownames(sim_data)))
 reordered_x = x[dend_ward$tip.label]
 
 obj = contMap(dend_ward, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1), outline=FALSE, lwd = c(2,5), leg.txt="X5", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X5", ftype = "off")
 
 
 x = setNames(round(sim_data[, 6], 2), gsub(" ", "", rownames(sim_data)))
@@ -161,9 +171,15 @@ reordered_x = x[dend_ward$tip.label]
 
 obj = contMap(dend_ward, reordered_x, plot=FALSE)
 obj = setMap(obj,invert=TRUE)
-plot(obj,fsize=c(0.7,1), outline=FALSE, lwd = c(2,5), leg.txt="X6", ftype = "off")
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X6", ftype = "off")
 
-nb = NbClust::NbClust(sim_data[, -c(7, 8)], distance = "euclidean",
-                 min.nc = 2, max.nc = 8, method = "ward.D2")
+x = setNames(round(sim_data[, 7], 2), gsub(" ", "", rownames(sim_data)))
+reordered_x = x[dend_ward$tip.label]
 
-factoextra::fviz_nbclust(nb)
+obj = contMap(dend_ward, reordered_x, plot=FALSE)
+obj = setMap(obj,invert=TRUE)
+n = length(obj$cols)
+obj$cols[1:n] = viridis::viridis(n)
+plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X7", ftype = "off")
