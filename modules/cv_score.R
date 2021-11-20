@@ -1042,7 +1042,7 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                     return(NA)
                                   })
           }
-          all_results[[paste0(hc.func, ".", methods[c])]] = 1 - (results/sum(results))
+          all_results[[paste0(hc.func, ".", methods[c])]] = 1 - (results)
         }}else{
           results = numeric(p)
           types = sapply(original_data, class)
@@ -1075,7 +1075,7 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                     return(NA)
                                   })
           }
-          all_results[[hc.func]] = 1 - (results/sum(results))
+          all_results[[hc.func]] = 1 - results
         }
     }else{
       if(length(bool[bool != T]) == 0){
@@ -1100,7 +1100,7 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                       return(NA)
                                     })
             }
-            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(1 - results/sum(results), 
+            all_results[[paste0(hc.func, ".", methods[c], ".", used.dists[h])]] = c(1 - results, 
                                                                                     used.dists[h])
           }}else{
             results = numeric(p)
@@ -1116,7 +1116,8 @@ L_cross_val_per_var_alt = function(original_data, cl.list, dists = NA, mixed_dis
                                       return(NA)
                                     })
             }
-            all_results[[paste0(hc.func, ".", used.dists[h])]] = c(1 - results/sum(results), used.dists[h])
+            all_results[[paste0(hc.func, ".", used.dists[h])]] = c(1 - results, 
+                                                                used.dists[h])
           }
       }
     }
