@@ -136,6 +136,7 @@ melted_data %>%
   facet_wrap(~k)
 
 mcquitty.tree = convert_to_phylo(arr_dend)
+par(mfrow = c(1,1))
 x = setNames(scale(arr_data[,1]),gsub(" ", "", rownames(USArrests)))
 reordered_x = x[mcquitty.tree$tip.label]
 obj = contMap(mcquitty.tree, reordered_x, plot=FALSE)
@@ -143,6 +144,7 @@ obj = setMap(obj,invert=TRUE)
 n = length(obj$cols)
 obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.6,0.8),outline=FALSE,lwd=c(3,7),leg.txt="Murder", legend = FALSE)
+nodelabels(text= c("A", "B", "C", "D", "E", "F"),node= c(52, 82, 53, 59, 83, 89))
 
 # comparing our importance score to random forest importance
 # using wheat seed dataset
@@ -153,7 +155,7 @@ wheat_data = read.delim("data/seeds_dataset.txt",
                         header = F)
 wheat_data$V8 = as.factor(wheat_data$V8)
 head(wheat_data)
-
+dados_quant = wheat_data[, -8]
 # obtaining dendrogram
 wheat_dend = wheat_data %>%
   dplyr::select(-V8) %>%
@@ -189,6 +191,7 @@ rf_clust_6 = ranger::ranger(formula = clust6 ~ . - clust3 - V8,
 
 test.list = list(hclust = c("ward.D2"))
 dists = c("euclidean")
+
 import_x = L_cross_val_per_var_alt(dados_quant, test.list, 
                                    dists, scale = T)
 
@@ -255,6 +258,21 @@ dists = c("euclidean")
 import_x = L_cross_val_per_var_alt(dados_quant, test.list, 
                                    dists, scale = T)
 
+melted_sim = reshape2::melt(import_x)
+p1 = melted_sim %>%
+  mutate(variable = fct_reorder(variable, value, .desc = T)) %>%
+  ggplot(aes(x = variable, y  = value, group = 1)) +
+  geom_line() +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "Features",
+       y = "Importance score") +
+  theme(text = element_text(size = 14, 
+                            family ="serif"),
+        plot.title = element_text(hjust = 0.5)) +
+  ylim(min(melted_sim$value) - 0.05, max(melted_sim$value) + 0.05)
+
+p1
 
 ggplot_data = reshape2::melt(import_x)
 ggplot_data$variable = as.factor(colnames(X))

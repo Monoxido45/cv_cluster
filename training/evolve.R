@@ -2,7 +2,7 @@
 set.seed(2075)
 d <- 6
 k <- 8
-cov_stab <- 2^seq(from = -2, to = 3, length.out = d)
+cov_stab <- seq(from = 0.5, to = 1.5, length.out = 6)
 evolve <- function(obs, time) 
   obs + rnorm(d, 0, cov_stab^time)
 
@@ -21,7 +21,8 @@ for(time in 1:(k-1))
   }
 }
 
-sim_data <- cbind(param[[k]], runif(2^(k-1), 0, 1)) %>%
+
+sim_data <- param[[k]] %>%
   as.data.frame()
 
 
@@ -72,17 +73,15 @@ dend_ward = sim_data %>%
   dist() %>%
   hclust(method = "ward.D2")
 
-
-sim_data %<>%
-  mutate(clust3 = as.factor(cutree(dend_ward, k = 2)))
-
-
-nb = NbClust::NbClust(sim_data[, -c(7)], distance = "euclidean",
-                      min.nc = 1, max.nc = 20, method = "ward.D2")
+nb = NbClust::NbClust(sim_data, distance = "euclidean",
+                      min.nc = 2, max.nc = 10, method = "ward.D2")
 factoextra::fviz_nbclust(nb) +
   theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))
+
+sim_data %<>%
+  mutate(clust3 = as.factor(cutree(dend_ward, k = 3)))
 
 
 rf_clust_3 = ranger::ranger(formula = clust3 ~ .,
@@ -94,29 +93,30 @@ rf_clust_3 = ranger::ranger(formula = clust3 ~ .,
                             probability = T)
 
 import = tibble(variable = c(names(ranger::importance(rf_clust_3)), 
+                             names(ranger::importance(rf_clust_3)),
                              names(ranger::importance(rf_clust_3))),
                 importance = c(ranger::importance(rf_clust_3),
-                               melted_sim$value)) %>%
-  mutate(cluster = as.factor(rep(c("RF k = 3", "Our Score"), each = dim(sim_data)[2] - 1)))
+                               melted_sim$value, 
+                               1/cov_stab)) %>%
+  mutate(cluster = as.factor(rep(c("RF", "PFIS", "Truth"), each = dim(sim_data)[2] - 1)))
+
+import$cluster_f = factor(import$cluster, levels=c('RF','PFIS','Truth'))
 
 import %>%
-  ggplot(aes(x = variable,
-             y = importance))+
-  geom_bar(stat = "identity", position = "dodge", fill = "dodgerblue3") + 
-  coord_flip()+
-  labs(y = "Importance score",
-       x = "")+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
-        text = element_text(size = 15,
+  ggplot(aes(x = variable, y  = importance, group = 1)) +
+  geom_line() +
+  geom_point() +
+  theme_bw() +
+  labs(x = "Features",
+       y = "Importance score") +
+  theme(text = element_text(size = 14, 
                             family ="serif"),
-        plot.title = element_text(hjust = 0.5))+
-  scale_fill_gradient(low = "firebrick2", high = "dodgerblue3")+
-  facet_wrap(~cluster, scales = "free_x")
+        plot.title = element_text(hjust = 0.5)) +
+  facet_wrap(~cluster_f, scales = "free_y")
 
 dend_ward %<>% convert_to_phylo()
 
-par(mfrow= c(2, 4))
+par(mfrow= c(2, 3))
 x = setNames(round(sim_data[, 1], 2), gsub(" ", "", rownames(sim_data)))
 reordered_x = x[dend_ward$tip.label]
 
@@ -175,11 +175,3 @@ n = length(obj$cols)
 obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X6", ftype = "off")
 
-x = setNames(round(sim_data[, 7], 2), gsub(" ", "", rownames(sim_data)))
-reordered_x = x[dend_ward$tip.label]
-
-obj = contMap(dend_ward, reordered_x, plot=FALSE)
-obj = setMap(obj,invert=TRUE)
-n = length(obj$cols)
-obj$cols[1:n] = viridis::viridis(n)
-plot(obj,fsize=c(0.5,0.75), outline=FALSE, lwd = c(2,5), leg.txt="X7", ftype = "off")

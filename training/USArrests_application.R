@@ -440,17 +440,12 @@ test.list = list(hclust = c("single","ward.D2", "ward.D", "complete", "mcquitty"
 dists = c("euclidean")
 tol = 1e-20
 
-# computing scores:
-ceramic_L_croos_val = L_cross_val(ceramic_data[, -1], cl.list = test.list, dists = dists,
-            tol = tol, seed = 99, scale =  T)
-
-
 
 # computing scores only for ward.D2 linkage
 test.list = list(hclust = c("mcquitty"))
 dists = c("euclidean")
 
-# wheat seeds dataset
+# computing scores:
 ceramic.l_cross_per_var = L_cross_val_per_var_alt(ceramic_data[, -1], test.list, 
                                                 dists, scale = T)
 
