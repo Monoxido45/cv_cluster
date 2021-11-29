@@ -102,6 +102,15 @@ import = tibble(variable = c(names(ranger::importance(rf_clust_3)),
 
 import$cluster_f = factor(import$cluster, levels=c('RF','PFIS','Truth'))
 
+facet_names <- c(
+  `RF` = "RF",
+  `PFIS` = "PFIS",
+  `Truth` = expression(sigma[j]^{-1})
+)
+
+import = mutate_at(import, .vars = "cluster_f",
+                   .funs = factor, labels = facet_names)
+
 import %>%
   ggplot(aes(x = variable, y  = importance, group = 1)) +
   geom_line() +
@@ -112,7 +121,8 @@ import %>%
   theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5)) +
-  facet_wrap(~cluster_f, scales = "free_y")
+  facet_wrap(~cluster_f, scales = "free_y", 
+             labeller = label_parsed)
 
 dend_ward %<>% convert_to_phylo()
 

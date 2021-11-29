@@ -458,7 +458,7 @@ p1 = ggplot_data %>%
   geom_point() +
   theme_minimal() +
   labs(x = "Features",
-       y = "Cross validated score values") +
+       y = "Phylogenetic Feature Importance Score (PFIS)") +
   theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5)) +
@@ -498,12 +498,14 @@ obj$cols[1:n] = viridis::viridis(n)
 plot(obj,fsize=c(0.5,0.9),outline=FALSE, lwd = c(2,5), leg.txt = "MgO", ftype = "off")
 
 
+set.seed(12500)
+sim_tree = rtree(n = 4, tip.label = c("1", "0", "0", "?"))
+plotTree(sim_tree, fsize= 1.5)
 # adding the phylogenetic simulated example
 # simulating tree
 set.seed(1235)
 sim_tree = rtree(n = 24, tip.label = letters[1:24])
-plotTree(sim_tree)
-
+plotTree(sim_tree, lwd = c(2, 5))
 # generating discrete states:
 disc_states = rTraitDisc(sim_tree, k = 2, freq = 0.45, rate = 0.65)
 
