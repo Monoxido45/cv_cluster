@@ -22,7 +22,7 @@ for(time in 1:(k-1))
 }
 
 
-sim_data <- param[[k]] %>%
+sim_data <- param[[k]] |>
   as.data.frame()
 
 
@@ -45,10 +45,94 @@ library(MASS)
 library(plyr)
 library(clValid)
 
+# implementing variable importance score from badih also called lovo score
+lovo <- function(data, hclust_type = "ward.D2", dist_type = "euclidean", 
+                 k = 3){
+  p <- ncol(data)
+  
+  1:p |>
+    map_dbl(function(x){
+      new_data <- data[, -x]
+      n <- nrow(data)
+      
+      # obtaining partition for leave one out
+      part <- new_data |> 
+        scale() |>
+        dist(method = dist_type) |>
+        hclust(method = hclust_type) |>
+        cutree(k = k)
+      
+      new_data <- new_data |>
+        mutate(part = part)
+      
+      # within cluster heterogeneity for variable p
+      lovo <- 1:k |>
+        map_dbl(function(t){
+          trace_t <- new_data |> 
+            filter(part == t) |>
+            var() |>
+            diag() |>
+            sum()
+          
+          nt <- new_data |> 
+            filter(part == t) |>
+            nrow()
+          
+          nt/n * trace_t
+        }) |>
+        mean()
+      
+      return(lovo)
+    })
+}
+
+
 test.list = list(hclust = c("ward.D2"))
 dists = c("euclidean")
+# variable importance by our method
 import_sim = L_cross_val_per_var_alt(sim_data, test.list, 
                                    dists, scale = T)
+
+# variable importance by lovo
+lovo_sim <- lovo(sim_data)
+
+# variable importance by XGboost
+# current dendrogram
+dend_ward = sim_data %>%
+  scale() %>%
+  dist() %>%
+  hclust(method = "ward.D2")
+
+sim_data %<>%
+  mutate(clust3 = as.factor(cutree(dend_ward, k = 3)))
+
+data_matrix <- model.matrix(clust3 ~ ., data = sim_data)[,-1]
+
+xgb_params <- list("objective" = "multi:softprob",
+                   "eval_metric" = "mlogloss",
+                   "num_class" = 3)
+
+xgb <- xgboost::xgboost(
+  params = xgb_params,
+  data = data_matrix, 
+  label = as.numeric(sim_data$clust3) - 1,
+  max.depth = 2,
+  nrounds = 50)
+
+# obtaining importance score
+importance_matrix <- xgboost::xgb.importance(colnames(data_matrix),
+                                   model = xgb) |>
+  arrange(Feature)
+
+
+
+
+# simulated data with dendrogram
+sim_data %<>%
+  mutate(clust3 = as.factor(cutree(dend_ward, k = 3)))
+
+
+
 
 melted_sim = reshape2::melt(import_sim)
 melted_sim$variable = as.factor(colnames(import_sim))
@@ -68,20 +152,13 @@ p1 = melted_sim %>%
 p1
 
 # RF
-dend_ward = sim_data %>%
-  scale() %>%
-  dist() %>%
-  hclust(method = "ward.D2")
-
 nb = NbClust::NbClust(sim_data, distance = "euclidean",
                       min.nc = 2, max.nc = 10, method = "ward.D2")
+
 factoextra::fviz_nbclust(nb) +
   theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5))
-
-sim_data %<>%
-  mutate(clust3 = as.factor(cutree(dend_ward, k = 3)))
 
 
 rf_clust_3 = ranger::ranger(formula = clust3 ~ .,
@@ -94,18 +171,26 @@ rf_clust_3 = ranger::ranger(formula = clust3 ~ .,
 
 import = tibble(variable = c(names(ranger::importance(rf_clust_3)), 
                              names(ranger::importance(rf_clust_3)),
+                             names(ranger::importance(rf_clust_3)),
+                             names(ranger::importance(rf_clust_3)),
                              names(ranger::importance(rf_clust_3))),
                 importance = c(ranger::importance(rf_clust_3),
-                               melted_sim$value, 
+                               importance_matrix$Gain,
+                               lovo_sim,
+                               melted_sim$value,
                                1/cov_stab)) %>%
-  mutate(cluster = as.factor(rep(c("RF", "PFIS", "Truth"), each = dim(sim_data)[2] - 1)))
+  mutate(cluster = as.factor(rep(c("RF", "XGboost", "LOVO" ,"PFIS", "Truth"), 
+                                 each = dim(sim_data)[2] - 1)))
 
-import$cluster_f = factor(import$cluster, levels=c('RF','PFIS','Truth'))
+import$cluster_f = factor(import$cluster, levels=c('RF', "XGboost",
+                                                   'LOVO', 'PFIS','Truth'))
 
 facet_names <- c(
   `RF` = "RF",
-  `PFIS` = "PFIS",
-  `Truth` = expression(sigma[j]^{-1})
+  `XGboost` = "XGboost",
+  `LOVO` = "LOVO",
+  `PFIS` = expression("PFIS"~ "(Our approach)"),
+  `Truth` = expression("Ground truth (" ~ sigma[j]^{-1} ~ ")")
 )
 
 import = mutate_at(import, .vars = "cluster_f",
@@ -121,7 +206,7 @@ import %>%
   theme(text = element_text(size = 14, 
                             family ="serif"),
         plot.title = element_text(hjust = 0.5)) +
-  facet_wrap(~cluster_f, scales = "free_y", 
+  facet_wrap(~cluster_f, scales = "free_y", ncol = 5,
              labeller = label_parsed)
 
 dend_ward %<>% convert_to_phylo()

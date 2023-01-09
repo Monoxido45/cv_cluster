@@ -9,6 +9,10 @@ output:
 knitr::opts_chunk$set(echo = T, out.width = '85%', fig.align = "center", warning = F)
 ```
 Importing needed packages
+```{r}
+getwd()
+```
+
 ```{r message = FALSE}
 library(ape)
 library(dendextend)
@@ -20,8 +24,8 @@ library(phytools)
 library(mltools)
 library(data.table)
 library(factoextra)
-source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/convert_to_parenthesis.R")
-source("C:/Users/lucru/Estatística_UFSCar/cv_cluster/modules/cv_score.R")
+source("../modules/convert_to_parenthesis.R")
+source("../modules/cv_score.R")
 library(tictoc)
 library(mvMORPH)
 library(dplyr)
