@@ -18,6 +18,7 @@ library(tictoc)
 library(RColorBrewer)
 library(MASS)
 library(plyr)
+library(fossil)
 source("modules/convert_to_parenthesis.R")
 source("modules/cv_score.R")
 
@@ -124,8 +125,20 @@ display_silhouette_coph = function(data, clust.list, test_index,
   cat("silhouette vs F1: ", cor(coph_sil_res$silhouette, coph_sil_res$f1, use = "complete.obs",
                                 method = "spearman"), "\n")
   
+  cat("Correlations between Dunn index and F1: \n")
+  cat("cophenetic vs F1: ", cor(coph_sil_res$dun, coph_sil_res$f1,  use = "complete.obs",
+                                method = "spearman"), "\n")
+  
+  cat("Correlations between connectivity and F1: \n")
+  cat("cophenetic vs F1: ", cor(coph_sil_res$con, coph_sil_res$f1,  use = "complete.obs",
+                                method = "spearman"), "\n")
+  
   cat("Correlations between cophenetic score and F1: \n")
   cat("cophenetic vs F1: ", cor(coph_sil_res$coph, coph_sil_res$f1, use = "complete.obs",
+                                method = "spearman"), "\n")
+  
+  cat("Correlations between Rand index and F1: \n")
+  cat("cophenetic vs F1: ", cor(coph_sil_res$rand, coph_sil_res$f1,  use = "complete.obs",
                                 method = "spearman"), "\n")
   return(coph_sil_res)
 }
@@ -143,6 +156,9 @@ silhouette_coph_val <- function(training_data, test_data, clust_list,
   all_F1 = numeric(0)
   all_sil = numeric(0)
   all_coph = numeric(0)
+  all_rand = numeric(0)
+  all_dun = numeric(0)
+  all_con = numeric(0)
   
   types = sapply(training_data, class)
   bool =  (types == "integer" | types == "numeric")
@@ -205,13 +221,26 @@ silhouette_coph_val <- function(training_data, test_data, clust_list,
           sil_obj <- silhouette(clusts[max.index, ], d) |> summary()
           ave_sil <- -sil_obj$avg.width
           
+          # dunn index
+          dun <- -clValid::dunn(d, clusts[max.index, ])
+          
+          # connectiviy
+          con <- clValid::connectivity(d, clusts[max.index, ])
+          
+          # rand index
+          y <- relab_y |> as.character() |> as.numeric()
+          rand_val <- -adj.rand.index(y, clusts[max.index, ])
+          
           # cophenetic
           coph_obj = cophenetic(as.hclust(clust))
-          coph_val = cor(d, coph_obj)
+          coph_val = -cor(d, coph_obj)
           
           all_F1 = c(all_F1, F1_s)
+          all_dun = c(all_dun, dun)
           all_sil = c(all_sil, ave_sil)
+          all_rand = c(all_rand, rand_val)
           all_coph = c(all_coph, coph_val)
+          all_con = c(con, all_con)
         }
       }else{
         if(length(bool[bool != T]) == 0){
@@ -246,13 +275,26 @@ silhouette_coph_val <- function(training_data, test_data, clust_list,
         sil_obj <- silhouette(clusts[max.index, ], d) |> summary()
         ave_sil <- -sil_obj$avg.width
         
+        # dunn index
+        dun <- -clValid::dunn(d, clusts[max.index, ])
+        
+        # connectiviy
+        con <- clValid::connectivity(d, clusts[max.index, ])
+        
+        # rand index
+        y <- relab_y |> as.character() |> as.numeric()
+        rand_val <- -adj.rand.index(y, clusts[max.index, ])
+        
         # cophenetic
         coph_obj = cophenetic(as.hclust(clust))
-        coph_val = cor(d, coph_obj)
+        coph_val = -cor(d, coph_obj)
         
         all_F1 = c(all_F1, F1_s)
         all_sil = c(all_sil, ave_sil)
         all_coph = c(all_coph, coph_val)
+        all_dun = c(all_dun, dun)
+        all_rand = c(all_rand, rand_val)
+        all_con = c(con, all_con)
       }
     
       }else{
@@ -292,9 +334,22 @@ silhouette_coph_val <- function(training_data, test_data, clust_list,
             coph_obj = cophenetic(as.hclust(clust))
             coph_val = -cor(d, coph_obj)
             
+            # dunn index
+            dun <- -clValid::dunn(d, clusts[max.index, ])
+            
+            # connectiviy
+            con <- clValid::connectivity(d, clusts[max.index, ])
+            
+            # rand index
+            y <- relab_y |> as.character() |> as.numeric()
+            rand_val <- -adj.rand.index(y, clusts[max.index, ])
+            
             all_F1 = c(all_F1, F1_s)
             all_sil = c(all_sil, ave_sil)
             all_coph = c(all_coph, coph_val)
+            all_rand = c(all_rand, rand_val)
+            all_dun = c(all_dun, dun)
+            all_con = c(all_con, con)
           }
         }else{
           d = get(func)(scale(training_data), method = used.dists[h])
@@ -317,20 +372,36 @@ silhouette_coph_val <- function(training_data, test_data, clust_list,
           sil_obj <- silhouette(clusts[max.index, ], d) |> summary()
           ave_sil <- -sil_obj$avg.width
           
+          # dunn index
+          dun <- -clValid::dunn(d, clusts[max.index, ])
+          
+          # connectiviy
+          con <- clValid::connectivity(d, clusts[max.index, ])
+          
           # cophenetic
           coph_obj = cophenetic(as.hclust(clust))
           coph_val = -cor(d, coph_obj)
           
+          # rand index
+          y <- relab_y |> as.character() |> as.numeric()
+          rand_val <- -adj.rand.index(y, clusts[max.index, ])
+          
           all_F1 = c(all_F1, F1_s)
           all_sil = c(all_sil, ave_sil)
           all_coph = c(all_coph, coph_val)
+          all_dun = c(all_dun, dun)
+          all_rand = c(all_rand, rand_val)
+          all_con = c(all_con, con)
         }
       }
     }
   }
   results_data = data.frame(silhouette = all_sil,
                             f1 = all_F1,
-                            coph = all_coph)
+                            dun = all_dun,
+                            con = all_con,
+                            coph = all_coph,
+                            rand = all_rand)
   return(results_data)
 }
 
